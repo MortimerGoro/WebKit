@@ -481,7 +481,7 @@ NSView* RenderThemeMac::documentViewFor(RenderObject* o) const
 bool RenderThemeMac::isControlStyled(const RenderStyle* style, const BorderData& border,
                                      const FillLayer& background, const Color& backgroundColor) const
 {
-    if (style->appearance() == TextAreaPart || style->appearance() == ListboxPart)
+    if (style->appearance() == TextFieldPart || style->appearance() == TextAreaPart || style->appearance() == ListboxPart)
         return style->border() != border;
         
     // FIXME: This is horrible, but there is not much else that can be done.  Menu lists cannot draw properly when
@@ -707,15 +707,7 @@ NSControlSize RenderThemeMac::controlSizeForSystemFont(RenderStyle* style) const
 bool RenderThemeMac::paintTextField(RenderObject* o, const PaintInfo& paintInfo, const IntRect& r)
 {
     LocalCurrentGraphicsContext localContext(paintInfo.context);
-    NSTextFieldCell* textField = this->textField();
-
-    GraphicsContextStateSaver stateSaver(*paintInfo.context);
-
-    [textField setEnabled:(isEnabled(o) && !isReadOnlyControl(o))];
-    [textField drawWithFrame:NSRect(r) inView:documentViewFor(o)];
-
-    [textField setControlView:nil];
-
+    wkDrawBezeledTextFieldCell(r, isEnabled(o) && !isReadOnlyControl(o));
     return false;
 }
 
@@ -2041,18 +2033,6 @@ NSSliderCell* RenderThemeMac::sliderThumbVertical() const
     }
     
     return m_sliderThumbVertical.get();
-}
-
-NSTextFieldCell* RenderThemeMac::textField() const
-{
-    if (!m_textField) {
-        m_textField.adoptNS([[NSTextFieldCell alloc] initTextCell:@""]);
-        [m_textField.get() setBezeled:YES];
-        [m_textField.get() setEditable:YES];
-        [m_textField.get() setFocusRingType:NSFocusRingTypeExterior];
-    }
-
-    return m_textField.get();
 }
 
 } // namespace WebCore
