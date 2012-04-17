@@ -446,8 +446,6 @@ public:
     // the node's rendering object from the rendering tree and delete it.
     virtual void detach();
 
-    void reattach();
-
     virtual void willRemove();
     void createRendererIfNeeded();
     PassRefPtr<RenderStyle> styleForRenderer();
@@ -732,13 +730,6 @@ inline ContainerNode* Node::parentNodeGuaranteedHostFree() const
 {
     ASSERT(!getFlag(IsShadowRootFlag) && !isSVGShadowRoot());
     return parentOrHostNode();
-}
-
-inline void Node::reattach()
-{
-    if (attached())
-        detach();
-    attach();
 }
 
 } //namespace

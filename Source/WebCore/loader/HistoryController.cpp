@@ -198,10 +198,9 @@ void HistoryController::restoreDocumentState()
     
     if (!itemToRestore)
         return;
-    if (m_frame->loader()->requestedHistoryItem() == m_currentItem.get() && !m_frame->loader()->documentLoader()->isClientRedirect()) {
-        LOG(Loading, "WebCoreLoading %s: restoring form state from %p", m_frame->tree()->uniqueName().string().utf8().data(), itemToRestore);
-        doc->setStateForNewFormElements(itemToRestore->documentState());
-    }
+
+    LOG(Loading, "WebCoreLoading %s: restoring form state from %p", m_frame->tree()->uniqueName().string().utf8().data(), itemToRestore);
+    doc->setStateForNewFormElements(itemToRestore->documentState());
 }
 
 void HistoryController::invalidateCurrentItemCachedPage()

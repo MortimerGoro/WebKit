@@ -368,14 +368,11 @@ void ContainerNode::willRemove()
 {
     RefPtr<Node> protect(this);
 
-    NodeVector children;
-    collectNodes(this, children);
-    for (size_t i = 0; i < children.size(); ++i) {
-        if (children[i]->parentNode() != this) // Check for child being removed from subtree while removing.
-            continue;
-        children[i]->willRemove();
+    for (RefPtr<Node> child = firstChild(); child; child = child->nextSibling()) {
+        if (child->parentNode() != this) // Check for child being removed from subtree while removing.
+            break;
+        child->willRemove();
     }
-
     Node::willRemove();
 }
 
@@ -773,17 +770,13 @@ void ContainerNode::insertedIntoDocument()
     Node::insertedIntoDocument();
     insertedIntoTree(false);
 
-    NodeVector children;
-    collectNodes(this, children);
-    for (size_t i = 0; i < children.size(); ++i) {
-        // If we have been removed from the document during this loop, then
-        // we don't want to tell the rest of our children that they've been
-        // inserted into the document because they haven't.
-        if (!inDocument())
+    for (RefPtr<Node> child = m_firstChild; child; child = child->nextSibling()) {
+        // Guard against mutation during re-parenting.
+        if (!inDocument()) // Check for self being removed from document while reparenting.
             break;
-        if (children[i]->parentNode() != this)
-            continue;
-        children[i]->insertedIntoDocument();
+        if (child->parentNode() != this) // Check for child being removed from subtree while reparenting.
+            break;
+        child->insertedIntoDocument();
     }
 }
 
@@ -794,19 +787,8 @@ void ContainerNode::removedFromDocument()
         document()->setCSSTarget(0); 
     clearInDocument();
     removedFromTree(false);
-
-    NodeVector children;
-    collectNodes(this, children);
-    for (size_t i = 0; i < children.size(); ++i) {
-        // If we have been added to the document during this loop, then we
-        // don't want to tell the rest of our children that they've been
-        // removed from the document because they haven't.
-        if (inDocument())
-            break;
-        if (children[i]->parentNode() != this)
-            continue;
-        children[i]->removedFromDocument();
-    }
+    for (Node* child = m_firstChild; child; child = child->nextSibling())
+        child->removedFromDocument();
 }
 
 void ContainerNode::insertedIntoTree(bool deep)

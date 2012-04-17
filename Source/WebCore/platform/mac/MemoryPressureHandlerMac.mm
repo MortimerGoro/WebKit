@@ -140,6 +140,8 @@ void MemoryPressureHandler::respondToMemoryPressure()
 
     memoryCache()->pruneToPercentage(0.5f);
 
+    gcController().garbageCollectNow();
+
     WTF::releaseFastMallocFreeMemory();
 }
 #endif

@@ -1,37 +1,23 @@
-2012-04-16  Lucas Forschler  <lforschler@apple.com>
+2012-04-10  Lucas Forschler  <lforschler@apple.com>
 
-    Merge 112966
+    Merge 113654
 
-    2012-04-02  Oliver Hunt  <oliver@apple.com>
+    2012-04-09  Gavin Barraclough  <barraclough@apple.com>
 
-            Incorrect liveness information when inlining
-            https://bugs.webkit.org/show_bug.cgi?id=82985
+            If a callback function returns a C++ null, convert to undefined.
+            https://bugs.webkit.org/show_bug.cgi?id=83534
 
-            Reviewed by Filip Pizlo.
+            Reviewed by Geoff Garen.
 
-            Don't remap register numbers that have already been remapped.
-
-            * dfg/DFGByteCodeParser.cpp:
-            (JSC::DFG::ByteCodeParser::handleInlining):
+            * API/JSCallbackFunction.cpp:
+                - If a callback function returns a C++ null, convert to undefined.
+            (JSC::JSCallbackFunction::call):
+            * API/tests/testapi.c:
+            (Base_returnHardNull):
+            * API/tests/testapi.js:
+                - Add a test case for callback functions that return a C++ null.
 
 2012-03-20  Lucas Forschler  <lforschler@apple.com>
-
-    Merge 107647
-
-    2012-02-13  Oliver Hunt  <oliver@apple.com>
-
-            Executing out of bounds in JSC::Yarr::YarrCodeBlock::execute / JSC::RegExp::match
-            https://bugs.webkit.org/show_bug.cgi?id=76315
-
-            Reviewed by Gavin Barraclough.
-
-            Perform a 3 byte compare using two comparisons, rather than trying to perform the
-            operation with a four byte load.
-
-            * yarr/YarrJIT.cpp:
-            (JSC::Yarr::YarrGenerator::generatePatternCharacterOnce):
-
-2012-03-19  Lucas Forschler  <lforschler@apple.com>
 
     Merge 111162
 
@@ -84,10 +70,22 @@
             * API/tests/testapi.js:
                 - Revert this test, now we no longer artificially introduce a toString method onto the api object.
 
-2012-03-19  Lucas Forschler  <lforschler@apple.com>
+2012-03-16  Lucas Forschler  <lforschler@apple.com>
+
+    Merge 111081
+
+    2012-03-16  Lucas Forschler  <lforschler@apple.com>
+
+            Remove a bogus assert that was merged in from ToT.  It is not needed on this branch.
+
+            Reviewed by Filip Pizlo.
+
+            * bytecode/CodeBlock.h:
+            (JSC::CodeBlock::addValueProfile):
+
+2012-03-14  Lucas Forschler  <lforschler@apple.com>
 
     Merge 110818
-    from http://svn.webkit.org/repository/webkit/branches/safari-534.54-branch
 
     2012-03-14  Filip Pizlo  <fpizlo@apple.com>
 
@@ -97,28 +95,6 @@
             Rubber stamped by Mark Rowe.
 
             * Configurations/Base.xcconfig:
-
-2012-03-18  Lucas Forschler  <lforschler@apple.com>
-
-    Rollout 110818 on this branch.
-    
-2012-03-16  Lucas Forschler  <lforschler@apple.com>
-
-        Remove a bogus assert that was merged in from ToT.  It is not needed on this branch.
-        
-        Reviewed by Filip Pizlo.
-
-        * bytecode/CodeBlock.h:
-        (JSC::CodeBlock::addValueProfile):
-
-2012-03-14  Filip Pizlo  <fpizlo@apple.com>
-
-        Fix for possible problems compiling with old versions of gcc
-        <rdar://problem/11043680>
-
-        Rubber stamped by Mark Rowe.
-
-        * Configurations/Base.xcconfig:
 
 2011-02-13  Lucas Forschler  <lforschler@apple.com>
 

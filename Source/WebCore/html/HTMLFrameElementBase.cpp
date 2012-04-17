@@ -167,8 +167,7 @@ void HTMLFrameElementBase::insertedIntoDocument()
 
     if (m_remainsAliveOnRemovalFromTree) {
         updateOnReparenting();
-        m_remainsAliveOnRemovalFromTree = false;
-        m_checkInDocumentTimer.stop();
+        setRemainsAliveOnRemovalFromTree(false);
         return;
     }
     // DocumentFragments don't kick of any loads.
@@ -260,10 +259,8 @@ void HTMLFrameElementBase::setRemainsAliveOnRemovalFromTree(bool value)
     // Start the async timer that is normally stopped by attach(). If it's not stopped and fires, it'll unload the frame.
     if (value)
         m_checkInDocumentTimer.startOneShot(0);
-    else {
+    else
         m_checkInDocumentTimer.stop();
-        willRemove();
-    }
 }
 
 void HTMLFrameElementBase::checkInDocumentTimerFired(Timer<HTMLFrameElementBase>*)

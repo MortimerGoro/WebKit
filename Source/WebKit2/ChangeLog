@@ -1,3 +1,107 @@
+2012-04-02  Mark Rowe  <mrowe@apple.com>
+
+        Merge r112801.
+
+    2012-03-31  Anders Carlsson  <andersca@apple.com>
+
+        32-bit plug-ins need to opt into magnified mode
+        https://bugs.webkit.org/show_bug.cgi?id=82837
+        <rdar://problem/9104840>
+
+        Reviewed by Simon Fraser.
+
+        * PluginProcess/mac/PluginProcessMainMac.mm:
+        (WebKit::PluginProcessMain):
+
+2012-03-16  Lucas Forschler  <lforschler@apple.com>
+
+    Merge 106977
+
+    2012-02-06  Anders Carlsson  <andersca@apple.com> 
+         
+        ScrollableAreaSet should be moved from Page to FrameView 
+        https://bugs.webkit.org/show_bug.cgi?id=62762 
+     
+        Reviewed by Beth Dakin. 
+     
+        * WebProcess/Plugins/PDF/BuiltInPDFView.cpp: 
+        (WebKit::BuiltInPDFView::initialize): 
+        Call FrameView::addScrollableArea instead. 
+      
+        (WebKit::BuiltInPDFView::destroy): 
+        Call FrameView::removeScrollableArea instead. 
+ 
+        * WebProcess/Plugins/PDF/BuiltInPDFView.h: 
+        Remove disconnectFromPage since it no longer exists on ScrollableArea.
+    
+2012-03-16  Lucas Forschler  <lforschler@apple.com>
+
+    Merge 103880
+
+    2012-01-01  Dan Bernstein  <mitz@apple.com>
+
+            EnvironmentUtilities::stripValuesEndingWithString enters an infinite loop if the search value
+            occurs a component other than the first.
+
+            Reviewed by Anders Carlsson.
+
+            * Platform/unix/EnvironmentUtilities.cpp:
+            (WebKit::EnvironmentUtilities::stripValuesEndingWithString): Changed to start the search for
+            the next colon after the current colon.
+
+2012-03-16  Lucas Forschler  <lforschler@apple.com>
+
+    Merge 103843
+
+    2011-12-30  Dan Bernstein  <mitz@apple.com>
+
+            EnvironmentUtilities::stripValuesEndingWithString fails when the variable ends with the search value
+            https://bugs.webkit.org/show_bug.cgi?id=75389
+
+            Reviewed by Anders Carlsson.
+
+            * Platform/unix/EnvironmentUtilities.cpp:
+            (WebKit::EnvironmentUtilities::stripValuesEndingWithString): Fixed an off-by-1 error when
+            examining the character after the match.
+
+2012-03-14  Lucas Forschler  <lforschler@apple.com>
+
+    Merge 107307
+
+    2012-02-09  Matthew Delaney  <mdelaney@apple.com>
+
+            HiDPI: WebKit2's drag images are blurry
+            https://bugs.webkit.org/show_bug.cgi?id=67779
+
+            Use the proper deviceScaleFactor() instead of accessing _intrinsicDeviceScaleFactor
+
+            Reviewed by Beth Dakin.
+
+            * UIProcess/API/mac/WKView.mm:
+            (-[WKView _setDragImage:at:linkDrag:]):
+
+2012-03-14  Lucas Forschler  <lforschler@apple.com>
+
+    Merge 107267
+
+    2012-02-09  Matthew Delaney  <mdelaney@apple.com>
+
+            HiDPI: WebKit2's link-dragging images are blurry
+            https://bugs.webkit.org/show_bug.cgi?id=67779
+
+            Reviewed by Beth Dakin.
+
+            Teach startDrag about the deviceScaleFactor so that it creates
+            an appropriately scaled bitmap image to ship over.
+            * WebProcess/WebCoreSupport/mac/WebDragClientMac.mm:
+            (WebKit::WebDragClient::startDrag):
+            (WebKit::convertImageToBitmap):
+
+            Have setDragImage assume that it's receiving a bitmap image scaled
+            up by the deviceScaleFactor that it sees.
+            * UIProcess/API/mac/WKView.mm:
+            (-[WKView _setDragImage:at:linkDrag:]):
+
 2012-02-15  Anders Carlsson  <andersca@apple.com>
 
         <rdar://problem/10574154> Mouse input events in plug-ins have a vertical offset when the page is zoomed
