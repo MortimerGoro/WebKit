@@ -59,6 +59,10 @@ WebXRSession::WebXRSession(Document& document, WebXRSystem& system, XRSessionMod
 {
     m_device->initializeTrackingAndRendering(mode);
 
+    // https://immersive-web.github.io/webxr/#ref-for-dom-xrreferencespacetype-viewer%E2%91%A2
+    // Every session MUST support viewer XRReferenceSpaces.
+    m_device->initializeReferenceSpace(XRReferenceSpaceType::Viewer);
+
     suspendIfNeeded();
 }
 
@@ -199,24 +203,31 @@ void WebXRSession::requestReferenceSpace(XRReferenceSpaceType type, RequestRefer
     }
     // 1. Let promise be a new Promise.
     // 2. Run the following steps in parallel:
-    scriptExecutionContext()->postTask([this, promise = WTFMove(promise), type] (auto& context) mutable {
-        //  2.1. Create a reference space, referenceSpace, with the XRReferenceSpaceType type.
-        //  2.2. If referenceSpace is null, reject promise with a NotSupportedError and abort these steps.
+    scriptExecutionContext()->postTask([this, promise = WTFMove(promise), type](auto& context) mutable {
+        // 2.1. If the result of running reference space is supported for type and session is false, queue a task to reject promise
+        // with a NotSupportedError and abort these steps.
         if (!referenceSpaceIsSupported(type)) {
-            promise.reject(Exception { NotSupportedError });
+            queueTaskKeepingObjectAlive(*this, TaskSource::WebXR, [promise = WTFMove(promise)]() mutable {
+                promise.reject(Exception { NotSupportedError });
+            });
             return;
         }
+        // 2.2. Set up any platform resources required to track reference spaces of type type.
+        m_device->initializeReferenceSpace(type);
 
-        // https://immersive-web.github.io/webxr/#create-a-reference-space
-        RefPtr<WebXRReferenceSpace> referenceSpace;
-        if (type == XRReferenceSpaceType::BoundedFloor)
-            referenceSpace = WebXRBoundedReferenceSpace::create(downcast<Document>(context), makeRef(*this), type);
-        else
-            referenceSpace = WebXRReferenceSpace::create(downcast<Document>(context), makeRef(*this), type);
+        // 2.3. Queue a task to run the following steps:
+        queueTaskKeepingObjectAlive(*this, TaskSource::WebXR, [this, type, promise = WTFMove(promise), protectedDocument = makeRef(downcast<Document>(context))]() mutable {
+            // 2.4. Create a reference space, referenceSpace, with type and session.
+            // https://immersive-web.github.io/webxr/#create-a-reference-space
+            RefPtr<WebXRReferenceSpace> referenceSpace;
+            if (type == XRReferenceSpaceType::BoundedFloor)
+                referenceSpace = WebXRBoundedReferenceSpace::create(protectedDocument, makeRef(*this), type);
+            else
+                referenceSpace = WebXRReferenceSpace::create(protectedDocument, makeRef(*this), type);
 
-        //  2.3. Resolve promise with referenceSpace.
-        // 3. Return promise.
-        promise.resolve(referenceSpace.releaseNonNull());
+            // 2.5. Resolve promise with referenceSpace.
+            promise.resolve(referenceSpace.releaseNonNull());
+        });
     });
 }
 

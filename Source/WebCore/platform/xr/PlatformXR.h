@@ -61,6 +61,7 @@ public:
 
     virtual void initializeTrackingAndRendering(SessionMode) = 0;
     virtual void shutDownTrackingAndRendering() = 0;
+    virtual void initializeReferenceSpace(ReferenceSpaceType) = 0;
 
 protected:
     Device() = default;

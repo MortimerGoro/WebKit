@@ -111,6 +111,7 @@ private:
     private:
         void initializeTrackingAndRendering(PlatformXR::SessionMode) final { }
         void shutDownTrackingAndRendering() final { }
+        void initializeReferenceSpace(PlatformXR::ReferenceSpaceType) final { };
     };
     DummyInlineDevice m_defaultInlineDevice;
 

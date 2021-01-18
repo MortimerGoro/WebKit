@@ -72,6 +72,7 @@ public:
 private:
     void initializeTrackingAndRendering(PlatformXR::SessionMode) final { }
     void shutDownTrackingAndRendering() final { }
+    void initializeReferenceSpace(PlatformXR::ReferenceSpaceType) final { }
     Optional<Vector<FakeXRBoundsPoint>> m_nativeBoundsGeometry;
     RefPtr<WebXRRigidTransform> m_viewerOrigin;
     RefPtr<WebXRRigidTransform> m_floorOrigin;

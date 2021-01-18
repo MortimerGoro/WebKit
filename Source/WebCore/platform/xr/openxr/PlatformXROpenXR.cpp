@@ -74,6 +74,9 @@ private:
 
     XrInstance m_instance { XR_NULL_HANDLE };
     Ref<WorkQueue> m_workQueue;
+
+    using ReferenceSpacesMap = HashMap<ReferenceSpaceType, XrSpace*, IntHash<ReferenceSpaceType>, WTF::StrongEnumHashTraits<ReferenceSpaceType>>;
+    ReferenceSpacesMap m_referenceSpaces;
 };
 
 void Instance::Impl::enumerateApiLayerProperties() const
@@ -236,6 +239,24 @@ void Instance::enumerateImmersiveXRDevices(CompletionHandler<void(const DeviceLi
     });
 }
 
+static XrReferenceSpaceType toXrReferenceSpaceType(ReferenceSpaceType type)
+{
+    switch (type) {
+    case ReferenceSpaceType::Viewer:
+        return XR_REFERENCE_SPACE_TYPE_VIEW;
+    case ReferenceSpaceType::Local:
+        return XR_REFERENCE_SPACE_TYPE_LOCAL;
+    case ReferenceSpaceType::LocalFloor:
+    case ReferenceSpaceType::BoundedFloor:
+        return XR_REFERENCE_SPACE_TYPE_STAGE;
+    case ReferenceSpaceType::Unbounded:
+        return XR_REFERENCE_SPACE_TYPE_UNBOUNDED_MSFT;
+    default:
+        ASSERT_NOT_REACHED("Unrecognized reference space type %d", type);
+        return XR_REFERENCE_SPACE_TYPE_VIEW;
+    };
+}
+
 OpenXRDevice::OpenXRDevice(XrSystemId id, XrInstance instance, WorkQueue& queue, CompletionHandler<void()>&& callback)
     : m_systemId(id)
     , m_instance(instance)
@@ -302,6 +323,32 @@ Device::ListOfEnabledFeatures OpenXRDevice::enumerateReferenceSpaces(XrSession& 
     }
 
     return enabledFeatures;
+}
+
+void OpenXRDevice::initializeReferenceSpace(ReferenceSpaceType type)
+{
+    m_queue.dispatch([this, type]() {
+        ASSERT(m_session != XR_NULL_HANDLE);
+        ASSERT(m_instance != XR_NULL_HANDLE);
+        if (m_referenceSpaces.contains(type))
+            return;
+
+        XrPosef identityPose = {
+            .orientation = { .x = 0, .y = 0, .z = 0, .w = 1.0 },
+            .position = { .x = 0, .y = 0, .z = 0 }
+        };
+
+        auto spaceCreateInfo = createStructure<XrReferenceSpaceCreateInfo, XR_TYPE_REFERENCE_SPACE_CREATE_INFO>();
+        spaceCreateInfo.referenceSpaceType = toXrReferenceSpaceType(type);
+        spaceCreateInfo.poseInReferenceSpace = identityPose;
+
+        XrSpace space;
+        auto result = xrCreateReferenceSpace(m_session, &spaceCreateInfo, &space);
+        RETURN_IF_FAILED(result, "xrCreateReferenceSpace", m_instance);
+
+        m_referenceSpaces.add(type, space);
+        LOG(XR, "Created reference space of type %d", type);
+    });
 }
 
 void OpenXRDevice::collectSupportedSessionModes()
