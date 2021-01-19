@@ -3851,6 +3851,8 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
     m_ipcTestingAPIEnabled = store.getBoolValueForKey(WebPreferencesKey::ipcTestingAPIEnabledKey());
 #endif
 
+    RuntimeEnabledFeatures::sharedFeatures().setWebXREnabled(true); 
+
     m_page->setTextInteractionEnabled(store.getBoolValueForKey(WebPreferencesKey::textInteractionEnabledKey()));
 
 #if ENABLE(WEB_AUTHN) && PLATFORM(IOS)
