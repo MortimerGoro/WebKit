@@ -281,6 +281,7 @@ int main(int argc, char *argv[])
         "enable-webgl", TRUE,
         "enable-media-stream", TRUE,
         "enable-encrypted-media", TRUE,
+        "enable-write-console-messages-to-stdout", TRUE,
         nullptr);
 
     auto* backendPtr = backend.get();
