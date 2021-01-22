@@ -613,6 +613,10 @@ webkit.org/b/213131 http/tests/misc/gamepads-insecure.html [ Skip ]
 
 # WebXR
 webkit.org/b/212897 imported/w3c/web-platform-tests/webxr/idlharness.https.window.html [ Failure ]
+webkit.org/b/215637 imported/w3c/web-platform-tests/webxr/xrRigidTransform_constructor.https.html [ Pass ]
+webkit.org/b/215637 imported/w3c/web-platform-tests/webxr/xrRigidTransform_inverse.https.html [ Pass ]
+webkit.org/b/215637 imported/w3c/web-platform-tests/webxr/xrRigidTransform_matrix.https.html [ Pass ]
+webkit.org/b/215637 imported/w3c/web-platform-tests/webxr/xrRigidTransform_sameObject.https.html [ Pass ]
 webkit.org/b/215637 imported/w3c/web-platform-tests/webxr/xrSession_cancelAnimationFrame.https.html [ Failure Pass ]
 
 # LFC/IFC.

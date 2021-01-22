@@ -50,7 +50,7 @@ WebXRView::~WebXRView() = default;
 
 void WebXRView::setProjectionMatrix(const Vector<float>& matrix)
 {
-    m_projectionMatrix = Float32Array::create(matrix.data(), matrix.size());
+    //m_projectionMatrix = Float32Array::create(16);
 }
 
 } // namespace WebCore
