@@ -55,9 +55,14 @@ WebXRSession::WebXRSession(Document& document, WebXRSystem& system, XRSessionMod
     , m_mode(mode)
     , m_device(makeWeakPtr(device))
     , m_activeRenderState(WebXRRenderState::create(mode))
-    , m_animationTimer(*this, &WebXRSession::animationTimerFired)
+    , m_timeOrigin(MonotonicTime::now())
+    , m_animationFrame(WebXRFrame::create(this, true))
 {
     m_device->initializeTrackingAndRendering(mode);
+
+    // https://immersive-web.github.io/webxr/#ref-for-dom-xrreferencespacetype-viewer%E2%91%A2
+    // Every session MUST support viewer XRReferenceSpaces.
+    m_device->initializeReferenceSpace(XRReferenceSpaceType::Viewer);
 
     suspendIfNeeded();
 }
@@ -199,59 +204,32 @@ void WebXRSession::requestReferenceSpace(XRReferenceSpaceType type, RequestRefer
     }
     // 1. Let promise be a new Promise.
     // 2. Run the following steps in parallel:
-    scriptExecutionContext()->postTask([this, promise = WTFMove(promise), type] (auto& context) mutable {
-        //  2.1. Create a reference space, referenceSpace, with the XRReferenceSpaceType type.
-        //  2.2. If referenceSpace is null, reject promise with a NotSupportedError and abort these steps.
+    scriptExecutionContext()->postTask([this, promise = WTFMove(promise), type](auto& context) mutable {
+        // 2.1. If the result of running reference space is supported for type and session is false, queue a task to reject promise
+        // with a NotSupportedError and abort these steps.
         if (!referenceSpaceIsSupported(type)) {
-            promise.reject(Exception { NotSupportedError });
+            queueTaskKeepingObjectAlive(*this, TaskSource::WebXR, [promise = WTFMove(promise)]() mutable {
+                promise.reject(Exception { NotSupportedError });
+            });
             return;
         }
+        // 2.2. Set up any platform resources required to track reference spaces of type type.
+        m_device->initializeReferenceSpace(type);
 
-        // https://immersive-web.github.io/webxr/#create-a-reference-space
-        RefPtr<WebXRReferenceSpace> referenceSpace;
-        if (type == XRReferenceSpaceType::BoundedFloor)
-            referenceSpace = WebXRBoundedReferenceSpace::create(downcast<Document>(context), makeRef(*this), type);
-        else
-            referenceSpace = WebXRReferenceSpace::create(downcast<Document>(context), makeRef(*this), type);
+        // 2.3. Queue a task to run the following steps:
+        queueTaskKeepingObjectAlive(*this, TaskSource::WebXR, [this, type, promise = WTFMove(promise), protectedDocument = makeRef(downcast<Document>(context))]() mutable {
+            // 2.4. Create a reference space, referenceSpace, with type and session.
+            // https://immersive-web.github.io/webxr/#create-a-reference-space
+            RefPtr<WebXRReferenceSpace> referenceSpace;
+            if (type == XRReferenceSpaceType::BoundedFloor)
+                referenceSpace = WebXRBoundedReferenceSpace::create(protectedDocument, makeRef(*this), type);
+            else
+                referenceSpace = WebXRReferenceSpace::create(protectedDocument, makeRef(*this), type);
 
-        //  2.3. Resolve promise with referenceSpace.
-        // 3. Return promise.
-        promise.resolve(referenceSpace.releaseNonNull());
+            // 2.5. Resolve promise with referenceSpace.
+            promise.resolve(referenceSpace.releaseNonNull());
+        });
     });
-}
-
-void WebXRSession::animationTimerFired()
-{
-    m_lastAnimationFrameTimestamp = MonotonicTime::now();
-
-    if (m_callbacks.isEmpty())
-        return;
-
-    // TODO: retrieve frame from platform.
-    auto frame = WebXRFrame::create(*this);
-
-    m_runningCallbacks.swap(m_callbacks);
-    for (auto& callback : m_runningCallbacks) {
-        if (callback->isCancelled())
-            continue;
-        callback->handleEvent(m_lastAnimationFrameTimestamp.secondsSinceEpoch().milliseconds(), frame.get());
-    }
-
-    m_runningCallbacks.clear();
-}
-
-void WebXRSession::scheduleAnimation()
-{
-    if (m_animationTimer.isActive())
-        return;
-
-    if (m_ended)
-        return;
-
-    // TODO: use device's refresh rate. Let's start with 60fps.
-    Seconds animationInterval = 15_ms;
-    Seconds scheduleDelay = std::max(animationInterval - (MonotonicTime::now() - m_lastAnimationFrameTimestamp), 0_s);
-    m_animationTimer.startOneShot(scheduleDelay);
 }
 
 // https://immersive-web.github.io/webxr/#dom-xrsession-requestanimationframe
@@ -266,7 +244,8 @@ unsigned WebXRSession::requestAnimationFrame(Ref<XRFrameRequestCallback>&& callb
     callback->setCallbackId(newId);
     m_callbacks.append(WTFMove(callback));
 
-    scheduleAnimation();
+    if (m_callbacks.size() == 1 && !m_animationFrame->isActive())
+        requestFrame();
 
     // 4. Return session's animation frame callback identifier's current value.
     return newId;
@@ -369,6 +348,133 @@ const char* WebXRSession::activeDOMObjectName() const
 
 void WebXRSession::stop()
 {
+}
+
+void WebXRSession::applyPendingRenderState()
+{
+    // https: //immersive-web.github.io/webxr/#apply-the-pending-render-state
+    // 1. Let activeState be session’s active render state.
+    // 2. Let newState be session’s pending render state.
+    // 3. Set session’s pending render state to null.
+    auto newState = m_pendingRenderState;
+    ASSERT(newState);
+
+    // 4. Let oldBaseLayer be activeState’s baseLayer.
+    // 5. Let oldLayers be activeState’s layers.
+    // FIXME: those are only needed for step 6.2.
+
+    // 6.1 Set activeState to newState.
+    m_activeRenderState = newState;
+
+    // 6.2 If oldBaseLayer is not equal to activeState’s baseLayer, oldLayers is not equal to activeState’s layers, or the dimensions of any of the layers have changed, update the viewports for session.
+    // FIXME: implement this.
+
+    // 6.3 If activeState’s inlineVerticalFieldOfView is less than session’s minimum inline field of view set activeState’s inlineVerticalFieldOfView to session’s minimum inline field of view.
+    if (m_activeRenderState->inlineVerticalFieldOfView() < m_minimumInlineFOV)
+        m_activeRenderState->setInlineVerticalFieldOfView(m_minimumInlineFOV);
+
+    // 6.4 If activeState’s inlineVerticalFieldOfView is greater than session’s maximum inline field of view set activeState’s inlineVerticalFieldOfView to session’s maximum inline field of view.
+    if (m_activeRenderState->inlineVerticalFieldOfView() > m_maximumInlineFOV)
+        m_activeRenderState->setInlineVerticalFieldOfView(m_maximumInlineFOV);
+
+    // 6.5 If activeState’s depthNear is less than session’s minimum near clip plane set activeState’s depthNear to session’s minimum near clip plane.
+    if (m_activeRenderState->depthNear() < m_minimumNearClipPlane)
+        m_activeRenderState->setDepthNear(m_minimumNearClipPlane);
+
+    // 6.6 If activeState’s depthFar is greater than session’s maximum far clip plane set activeState’s depthFar to session’s maximum far clip plane.
+    if (m_activeRenderState->depthFar() > m_maximumFarClipPlane)
+        m_activeRenderState->setDepthFar(m_maximumFarClipPlane);
+
+    // 6.7 Let baseLayer be activeState’s baseLayer.
+    auto baseLayer = m_activeRenderState->baseLayer();
+
+    // 6.8 Set activeState’s composition disabled and output canvas as follows:
+    m_activeRenderState->setCompositionDisabled(true);
+    if (m_mode == XRSessionMode::Inline && is<WebXRWebGLLayer>(baseLayer) && baseLayer->compositionDisabled()) {
+        m_activeRenderState->setCompositionDisabled(true);
+        m_activeRenderState->setOutputCanvas(baseLayer->canvas());
+    } else {
+        m_activeRenderState->setCompositionDisabled(false);
+        m_activeRenderState->setOutputCanvas(nullptr);
+    }
+}
+
+// https://immersive-web.github.io/webxr/#should-be-rendered
+bool WebXRSession::frameShouldBeRendered() const
+{
+    if (!m_activeRenderState->baseLayer())
+        return false;
+    if (m_mode == XRSessionMode::Inline && !m_activeRenderState->outputCanvas())
+        return false;
+    return true;
+}
+
+void WebXRSession::requestFrame()
+{
+    m_device->requestFrame([this, protectedThis = makeRef(*this)](PlatformXR::Device::FrameData frameData) {
+        onFrame(frameData);
+    });
+}
+
+void WebXRSession::onFrame(PlatformXR::Device::FrameData frameData)
+{
+    ASSERT(isMainThread());
+
+    if (m_ended) 
+        return;
+
+    // Queue a task to perform the following steps.
+    queueTaskKeepingObjectAlive(*this, TaskSource::WebXR, [this, frameData]() {
+        //  1.Let now be the current high resolution time.
+        DOMHighResTimeStamp now = (MonotonicTime::now() - m_timeOrigin).milliseconds();
+
+        //  2.Let frame be session’s animation frame.
+        //  3.Set frame’s time to frameTime.
+        m_animationFrame->setTime(static_cast<DOMHighResTimeStamp>(frameData.predictedDisplayTime));
+
+        // 4. For each view in list of views, set view’s viewport modifiable flag to true.
+        // 5. If the active flag of any view in the list of views has changed since the last XR animation frame, update the viewports.
+        // FIXME: implement.
+
+        // FIXME: I moved step 7 before 6 because of https://github.com/immersive-web/webxr/issues/1164
+        // 7.If session’s pending render state is not null, apply the pending render state.
+        if (m_pendingRenderState)
+            applyPendingRenderState();
+
+        // 6. If the frame should be rendered for session:
+        if (frameShouldBeRendered()) {
+            // 6.1.Set session’s list of currently running animation frame callbacks to be session’s list of animation frame callbacks.
+            // 6.2.Set session’s list of animation frame callbacks to the empty list.
+            m_runningCallbacks.swap(m_callbacks);
+
+            // 6.3.Set frame’s active boolean to true.
+            m_animationFrame->setActive(true);
+
+            // 6.4.Apply frame updates for frame.
+            // FIXME: implement.
+
+            // 6.5.For each entry in session’s list of currently running animation frame callbacks, in order:
+            for (auto& callback : m_runningCallbacks) {
+                //  6.6.If the entry’s cancelled boolean is true, continue to the next entry.
+                if (callback->isCancelled())
+                    continue;
+                //  6.7.Invoke the Web IDL callback function for entry, passing now and frame as the arguments
+                callback->handleEvent(now, m_animationFrame.get());
+
+                //  6.8.If an exception is thrown, report the exception.
+            }
+            // 6.9.Set session’s list of currently running animation frame callbacks to the empty list.
+            m_runningCallbacks.clear();
+
+            // 6.10.Set frame’s active boolean to false.
+            m_animationFrame->setActive(false);
+
+            // Request next frame if users have called session.requestAnimationFrame during the animation frame.
+            if (!m_callbacks.isEmpty())
+                requestFrame();
+        }
+
+    });
 }
 
 } // namespace WebCore

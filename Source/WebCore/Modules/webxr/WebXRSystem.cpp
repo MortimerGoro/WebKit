@@ -35,6 +35,7 @@
 #include "JSWebXRSession.h"
 #include "JSXRReferenceSpaceType.h"
 #include "PlatformXR.h"
+#include "RequestAnimationFrameCallback.h"
 #include "RuntimeEnabledFeatures.h"
 #include "SecurityOrigin.h"
 #include "UserGestureIndicator.h"
@@ -49,11 +50,6 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(WebXRSystem);
 
-WebXRSystem::DummyInlineDevice::DummyInlineDevice()
-{
-    setEnabledFeatures(XRSessionMode::Inline, { XRReferenceSpaceType::Viewer });
-}
-
 Ref<WebXRSystem> WebXRSystem::create(ScriptExecutionContext& scriptExecutionContext)
 {
     return adoptRef(*new WebXRSystem(scriptExecutionContext));
@@ -61,6 +57,7 @@ Ref<WebXRSystem> WebXRSystem::create(ScriptExecutionContext& scriptExecutionCont
 
 WebXRSystem::WebXRSystem(ScriptExecutionContext& scriptExecutionContext)
     : ActiveDOMObject(&scriptExecutionContext)
+    , m_defaultInlineDevice(scriptExecutionContext)
 {
     m_inlineXRDevice = makeWeakPtr(m_defaultInlineDevice);
     suspendIfNeeded();
@@ -474,6 +471,48 @@ void WebXRSystem::sessionEnded(WebXRSession& session)
 
     m_inlineSessions.remove(session);
 }
+
+class InlineRequestAnimationFrameCallback: public RequestAnimationFrameCallback {
+public:
+    static Ref<InlineRequestAnimationFrameCallback> create(ScriptExecutionContext& scriptExecutionContext, Function<void()>&& callback)
+    {
+        return adoptRef(*new InlineRequestAnimationFrameCallback(scriptExecutionContext, WTFMove(callback)));
+    }
+
+    InlineRequestAnimationFrameCallback(ScriptExecutionContext& scriptExecutionContext, Function<void()>&& callback)
+        : RequestAnimationFrameCallback(&scriptExecutionContext), m_callback(WTFMove(callback))
+    {
+
+    }
+
+    CallbackResult<void> handleEvent(double highResTimeMs) override
+    {
+        UNUSED_PARAM(highResTimeMs);
+        m_callback();
+        return { };
+    }
+private:
+    Function<void()> m_callback;
+};
+
+
+WebXRSystem::DummyInlineDevice::DummyInlineDevice(ScriptExecutionContext& scriptExecutionContext)
+    : m_scriptExecutionContext(&scriptExecutionContext)
+{
+    setEnabledFeatures(XRSessionMode::Inline, { XRReferenceSpaceType::Viewer });
+}
+
+void WebXRSystem::DummyInlineDevice::requestFrame(PlatformXR::Device::RequestFrameCallback&& callback)
+{
+    // Inline XR sessions rely on document.requestAnimationFrame to perform the render loop.
+    auto document = downcast<Document>(m_scriptExecutionContext);
+    auto raf = InlineRequestAnimationFrameCallback::create(*m_scriptExecutionContext, [callback = WTFMove(callback)]() mutable {
+        callback({ });
+    });
+
+    document->requestAnimationFrame(raf);
+}
+
 
 } // namespace WebCore
 

@@ -28,7 +28,9 @@
 
 #if ENABLE(WEBXR)
 
+#include "HTMLCanvasElement.h"
 #include "IntSize.h"
+#include "OffscreenCanvas.h"
 #include "WebGLFramebuffer.h"
 #include "WebGLRenderingContext.h"
 #if ENABLE(WEBGL2)
@@ -196,6 +198,23 @@ double WebXRWebGLLayer::getNativeFramebufferScaleFactor(const WebXRSession& sess
 
     RELEASE_ASSERT_WITH_SECURITY_IMPLICATION(!recommendedSize.isZero());
     return (nativeSize / recommendedSize).width();
+}
+
+HTMLCanvasElement* WebXRWebGLLayer::canvas() const
+{
+    HTMLCanvasElement* c = WTF::switchOn(m_context, [](const RefPtr<WebGLRenderingContextBase>& baseContext) {
+        auto canvas = baseContext->canvas();
+        return WTF::switchOn(
+            canvas,
+            [](const RefPtr<HTMLCanvasElement>& canvas) {
+                return canvas.get();
+            },
+            [](RefPtr<OffscreenCanvas>) {
+                ASSERT_NOT_REACHED("baseLayer of a WebXRWebGLLayer must be an HTMLCanvasElement");
+                return nullptr;
+            });
+    });
+    return c;
 }
 
 } // namespace WebCore

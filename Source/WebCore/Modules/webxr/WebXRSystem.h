@@ -106,11 +106,16 @@ private:
     // https://immersive-web.github.io/webxr/#default-inline-xr-device
     class DummyInlineDevice final : public PlatformXR::Device {
     public:
-        DummyInlineDevice();
+        DummyInlineDevice(ScriptExecutionContext&);
 
     private:
         void initializeTrackingAndRendering(PlatformXR::SessionMode) final { }
         void shutDownTrackingAndRendering() final { }
+        void initializeReferenceSpace(PlatformXR::ReferenceSpaceType) final { };
+
+        void requestFrame(PlatformXR::Device::RequestFrameCallback&&) final;
+
+        ScriptExecutionContext* m_scriptExecutionContext;
     };
     DummyInlineDevice m_defaultInlineDevice;
 
