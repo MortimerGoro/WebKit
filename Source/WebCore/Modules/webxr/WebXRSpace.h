@@ -35,12 +35,18 @@ namespace WebCore {
 
 class Document;
 class ScriptExecutionContext;
+class WebXRRigidTransform;
 class WebXRSession;
 
 class WebXRSpace : public RefCounted<WebXRSpace>, public EventTargetWithInlineData, public ContextDestructionObserver {
     WTF_MAKE_ISO_ALLOCATED(WebXRSpace);
 public:
     virtual ~WebXRSpace();
+
+    const WebXRSession& session() const { return m_session.get(); }
+
+    virtual bool isReferenceSpace() const { return false; }
+    virtual bool isBoundedReferenceSpace() const { return false; }
 
     using RefCounted<WebXRSpace>::ref;
     using RefCounted<WebXRSpace>::deref;
@@ -52,6 +58,7 @@ protected:
     ScriptExecutionContext* scriptExecutionContext() const override { return ContextDestructionObserver::scriptExecutionContext(); }
 
     Ref<WebXRSession> m_session;
+    Ref<WebXRRigidTransform> m_originOffset;
 
 private:
     // EventTarget
@@ -61,5 +68,10 @@ private:
 };
 
 } // namespace WebCore
+
+#define SPECIALIZE_TYPE_TRAITS_WEBXRSPACE(ToValueTypeName, predicate) \
+SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::ToValueTypeName) \
+    static bool isType(const WebCore::WebXRSpace& context) { return context.predicate; } \
+SPECIALIZE_TYPE_TRAITS_END()
 
 #endif // ENABLE(WEBXR)

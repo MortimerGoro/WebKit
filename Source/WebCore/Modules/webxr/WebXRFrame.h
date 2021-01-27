@@ -28,6 +28,7 @@
 #if ENABLE(WEBXR)
 
 #include "DOMHighResTimeStamp.h"
+#include "ExceptionOr.h"
 #include <wtf/IsoMalloc.h>
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
@@ -44,12 +45,13 @@ class WebXRViewerPose;
 class WebXRFrame : public RefCounted<WebXRFrame> {
     WTF_MAKE_ISO_ALLOCATED(WebXRFrame);
 public:
-    static Ref<WebXRFrame> create(WebXRSession*, bool isAnimationFrame = false);
+    static Ref<WebXRFrame> create(WebXRSession&, bool isAnimationFrame = false);
     ~WebXRFrame();
 
-    const WebXRSession& session() const;
+    WebXRSession& session() const { return m_session; }
 
-    RefPtr<WebXRViewerPose> getViewerPose(const WebXRReferenceSpace&);
+    bool mustPosesBeLimited(const WebXRSpace&, const WebXRSpace& baseSpace);
+    ExceptionOr<RefPtr<WebXRViewerPose>> getViewerPose(const WebXRReferenceSpace&);
     RefPtr<WebXRPose> getPose(const WebXRSpace&, const WebXRSpace&);
 
     void setTime(DOMHighResTimeStamp time) { m_time = time; }
@@ -57,14 +59,14 @@ public:
     bool isActive() const { return m_active; }
 
 private:
-    WebXRFrame(WebXRSession*, bool isAnimationFrame);
+    WebXRFrame(WebXRSession&, bool isAnimationFrame);
 
-    bool m_active;
-    bool m_animationFrame;
+    bool m_active { false };
+    bool m_animationFrame { false };
     DOMHighResTimeStamp m_time;
 
     // Session owns the frame.
-    WebXRSession* m_session;
+    WebXRSession& m_session;
 };
 
 } // namespace WebCore

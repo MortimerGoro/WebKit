@@ -114,6 +114,7 @@ private:
         void initializeReferenceSpace(PlatformXR::ReferenceSpaceType) final { };
 
         void requestFrame(PlatformXR::Device::RequestFrameCallback&&) final;
+        Vector<Device::ViewData> views(XRSessionMode) const final { return { }; }
 
         ScriptExecutionContext* m_scriptExecutionContext;
     };

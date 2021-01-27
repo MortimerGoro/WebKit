@@ -51,8 +51,8 @@ public:
 private:
     FakeXRView(XREye eye)
     {
-        m_view = WebXRView::create();
-        m_view->setEye(eye);
+        /* FIXME: do we need FakeXRView??? */
+        /* m_view = WebXRView::create(eye, nullptr);*/
     }
 
     RefPtr<WebXRView> m_view;
@@ -75,6 +75,7 @@ private:
     void shutDownTrackingAndRendering() final;
     void initializeReferenceSpace(PlatformXR::ReferenceSpaceType) final { }
     void requestFrame(RequestFrameCallback&&) final;
+    Vector<Device::ViewData> views(XRSessionMode) const final { return { }; }
 
     void frameTimerFired();
 

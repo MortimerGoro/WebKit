@@ -28,11 +28,13 @@
 
 #if ENABLE(WEBXR)
 
+#include "Document.h"
 #include "EventNames.h"
 #include "JSWebXRReferenceSpace.h"
 #include "WebXRBoundedReferenceSpace.h"
 #include "WebXRFrame.h"
 #include "WebXRSystem.h"
+#include "WebXRView.h"
 #include "XRFrameRequestCallback.h"
 #include "XRRenderStateInit.h"
 #include "XRSessionEvent.h"
@@ -45,7 +47,9 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(WebXRSession);
 
 Ref<WebXRSession> WebXRSession::create(Document& document, WebXRSystem& system, XRSessionMode mode, PlatformXR::Device& device)
 {
-    return adoptRef(*new WebXRSession(document, system, mode, device));
+    auto webXRSession = adoptRef(*new WebXRSession(document, system, mode, device));
+    webXRSession->initializeViewerReferenceSpace(document);
+    return webXRSession;
 }
 
 WebXRSession::WebXRSession(Document& document, WebXRSystem& system, XRSessionMode mode, PlatformXR::Device& device)
@@ -56,14 +60,10 @@ WebXRSession::WebXRSession(Document& document, WebXRSystem& system, XRSessionMod
     , m_device(makeWeakPtr(device))
     , m_activeRenderState(WebXRRenderState::create(mode))
     , m_timeOrigin(MonotonicTime::now())
-    , m_animationFrame(WebXRFrame::create(this, true))
+    , m_animationFrame(WebXRFrame::create(*this, true)),
+    , m_views(device.views(mode))
 {
     m_device->initializeTrackingAndRendering(mode);
-
-    // https://immersive-web.github.io/webxr/#ref-for-dom-xrreferencespacetype-viewer%E2%91%A2
-    // Every session MUST support viewer XRReferenceSpaces.
-    m_device->initializeReferenceSpace(XRReferenceSpaceType::Viewer);
-
     suspendIfNeeded();
 }
 
@@ -71,6 +71,18 @@ WebXRSession::~WebXRSession()
 {
     if (!m_ended && m_device)
         m_device->shutDownTrackingAndRendering();
+
+    auto viewerReferenceSpace = adoptRef(m_viewerReferenceSpace);
+    m_viewerReferenceSpace = nullptr;
+}
+
+void WebXRSession::initializeViewerReferenceSpace(Document& document)
+{
+    // https://immersive-web.github.io/webxr/#ref-for-dom-xrreferencespacetype-viewer%E2%91%A2
+    // Every session MUST support viewer XRReferenceSpaces.
+    m_viewerReferenceSpace = &WebXRReferenceSpace::create(document, makeRef(*this), XRReferenceSpaceType::Viewer).leakRef();
+
+    m_device->initializeReferenceSpace(XRReferenceSpaceType::Viewer);
 }
 
 XREnvironmentBlendMode WebXRSession::environmentBlendMode() const
@@ -476,6 +488,31 @@ void WebXRSession::onFrame(PlatformXR::Device::FrameData frameData)
         }
 
     });
+}
+
+// https://immersive-web.github.io/webxr/#poses-may-be-reported
+bool WebXRSession::posesCanBeReported() const
+{
+    // There are several requirements in the specs but since we already have a session everything gets
+    // 1. Let document be the document that owns session.
+    // 2. If the request does not originate from document, return false.
+    auto* document = downcast<Document>(scriptExecutionContext());
+    if (!document)
+        return false;
+
+    // 3. If document is not active and focused, return false.
+    if (!document->hasFocus())
+        return false;
+
+    // 4. If session's visibilityState in not "visible", return false.
+    if (m_visibilityState != XRVisibilityState::Visible)
+        return false;
+
+    // 5. Determine if the pose data can be returned as follows:
+    // The procedure in the specs tries to ensure that we apply measures to
+    // prevent fingerprintint in pose data and return false in case we don't.
+    // We're going to apply them so let's just return true.
+    return true;
 }
 
 } // namespace WebCore

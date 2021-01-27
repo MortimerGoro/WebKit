@@ -44,6 +44,8 @@ public:
     const WebXRRigidTransform& transform() const;
     bool emulatedPosition() const;
 
+    virtual bool isViewerPose() const { return false; }
+
 protected:
     WebXRPose();
 
@@ -52,5 +54,10 @@ protected:
 };
 
 } // namespace WebCore
+
+#define SPECIALIZE_TYPE_TRAITS_WEBXRPOSE(ToValueTypeName, predicate)                    \
+SPECIALIZE_TYPE_TRAITS_BEGIN(WebCore::ToValueTypeName)                               \
+    static bool isType(const WebCore::WebXRPose& context) { return context.predicate; } \
+SPECIALIZE_TYPE_TRAITS_END()
 
 #endif // ENABLE(WEBXR)

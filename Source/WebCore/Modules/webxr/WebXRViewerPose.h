@@ -42,13 +42,18 @@ public:
     ~WebXRViewerPose();
 
     const Vector<Ref<WebXRView>>& views() const;
+    void setViews(Vector<Ref<WebXRView>>&&);
 
 private:
     WebXRViewerPose();
+
+    bool isViewerPose() const final { return true; }
 
     Vector<Ref<WebXRView>> m_views;
 };
 
 } // namespace WebCore
+
+SPECIALIZE_TYPE_TRAITS_WEBXRPOSE(WebXRViewerPose, isViewerPose())
 
 #endif // ENABLE(WEBXR)

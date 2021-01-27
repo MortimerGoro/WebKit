@@ -43,6 +43,11 @@ const Vector<Ref<WebXRView>>& WebXRViewerPose::views() const
     return m_views;
 }
 
+void WebXRViewerPose::setViews(Vector<Ref<WebXRView>>&& views)
+{
+    m_views = WTFMove(views);
+}
+
 } // namespace WebCore
 
 #endif // ENABLE(WEBXR)

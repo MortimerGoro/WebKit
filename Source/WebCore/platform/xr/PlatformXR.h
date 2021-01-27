@@ -43,6 +43,12 @@ enum class ReferenceSpaceType {
     Unbounded
 };
 
+enum class Eye {
+    None,
+    Left,
+    Right,
+};
+
 #if ENABLE(WEBXR)
 
 class Device : public CanMakeWeakPtr<Device> {
@@ -66,7 +72,7 @@ public:
 
     struct FrameData {
         long predictedDisplayTime;
-        struct ViewData {
+        struct PoseData {
             struct {
                 WebCore::FloatPoint3D position;
                 struct {
@@ -77,10 +83,16 @@ public:
                 float rUp, rDown, rLeft, rRight;
             } fov;
         };
-        Vector<ViewData> viewPoses;
+        Vector<PoseData> viewPoses;
     };
     using RequestFrameCallback = WTF::Function<void(FrameData)>;
     virtual void requestFrame(RequestFrameCallback&&) = 0;
+
+    struct ViewData {
+        bool active;
+        Eye eye;
+    };
+    virtual Vector<ViewData> views(SessionMode) const = 0;
 
 protected:
     Device() = default;

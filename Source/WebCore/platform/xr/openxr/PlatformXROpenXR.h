@@ -65,6 +65,8 @@ private:
 
     void requestFrame(RequestFrameCallback&&) final;
 
+    Vector<ViewData> views(SessionMode) const final;
+
     using ViewConfigurationPropertiesMap = HashMap<XrViewConfigurationType, XrViewConfigurationProperties, IntHash<XrViewConfigurationType>, WTF::StrongEnumHashTraits<XrViewConfigurationType>>;
     ViewConfigurationPropertiesMap m_viewConfigurationProperties;
     using ViewConfigurationViewsMap = HashMap<XrViewConfigurationType, Vector<XrViewConfigurationView>, IntHash<XrViewConfigurationType>, WTF::StrongEnumHashTraits<XrViewConfigurationType>>;

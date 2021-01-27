@@ -25,12 +25,12 @@
 
 #pragma once
 
+#if ENABLE(WEBXR)
+
 #include "WebXRReferenceSpace.h"
 #include <wtf/IsoMalloc.h>
 #include <wtf/Ref.h>
 #include <wtf/Vector.h>
-
-#if ENABLE(WEBXR)
 
 namespace WebCore {
 
@@ -48,9 +48,13 @@ public:
 private:
     WebXRBoundedReferenceSpace(Document&, Ref<WebXRSession>&&, XRReferenceSpaceType);
 
+    bool isBoundedReferenceSpace() const final { return true; }
+
     Vector<Ref<DOMPointReadOnly>> m_boundsGeometry;
 };
 
 } // namespace WebCore
+
+SPECIALIZE_TYPE_TRAITS_WEBXRSPACE(WebXRBoundedReferenceSpace, isBoundedReferenceSpace())
 
 #endif // ENABLE(WEBXR)

@@ -45,13 +45,18 @@ public:
     virtual ~WebXRReferenceSpace();
 
     RefPtr<WebXRReferenceSpace> getOffsetReferenceSpace(const WebXRRigidTransform&);
+    XRReferenceSpaceType type() const { return m_type; }
 
 protected:
     WebXRReferenceSpace(Document&, Ref<WebXRSession>&&, XRReferenceSpaceType);
+
+    bool isReferenceSpace() const final { return false; }
 
     XRReferenceSpaceType m_type;
 };
 
 } // namespace WebCore
+
+SPECIALIZE_TYPE_TRAITS_WEBXRSPACE(WebXRReferenceSpace, isReferenceSpace())
 
 #endif // ENABLE(WEBXR)

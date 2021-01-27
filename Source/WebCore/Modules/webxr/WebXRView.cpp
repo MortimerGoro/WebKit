@@ -36,13 +36,15 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(WebXRView);
 
-Ref<WebXRView> WebXRView::create()
+Ref<WebXRView> WebXRView::create(const PlatformXR::Device::ViewData& viewData, DOMHighResTimeStamp time, Ref<WebXRSession>&& session)
 {
-    return adoptRef(*new WebXRView);
+    return adoptRef(*new WebXRView(viewData, time, WTFMove(session)));
 }
 
-WebXRView::WebXRView()
-    : m_eye(XREye::None)
+WebXRView::WebXRView(const PlatformXR::Device::ViewData& viewData, DOMHighResTimeStamp time, Ref<WebXRSession>&& session)
+    : m_viewData(viewData)
+    , m_time(time)
+    , m_session(WTFMove(session))
 {
 }
 

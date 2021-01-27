@@ -420,15 +420,6 @@ void OpenXRDevice::collectConfigurationViews()
     }
 }
 
-WebCore::IntSize OpenXRDevice::recommendedResolution(SessionMode mode)
-{
-    auto configType = mode == SessionMode::Inline ? XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO : XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
-    auto viewsIterator = m_configurationViews.find(configType);
-    if (viewsIterator != m_configurationViews.end())
-        return { static_cast<int>(viewsIterator->value[0].recommendedImageRectWidth), static_cast<int>(viewsIterator->value[0].recommendedImageRectHeight) };
-    return Device::recommendedResolution(mode);
-}
-
 XrViewConfigurationType toXrViewConfigurationType(SessionMode mode)
 {
     switch (mode) {
@@ -440,6 +431,15 @@ XrViewConfigurationType toXrViewConfigurationType(SessionMode mode)
     };
     ASSERT_NOT_REACHED();
     return XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO;
+}
+
+WebCore::IntSize OpenXRDevice::recommendedResolution(SessionMode mode)
+{
+    auto configType = toXrViewConfigurationType(mode);
+    auto viewsIterator = m_configurationViews.find(configType);
+    if (viewsIterator != m_configurationViews.end())
+        return { static_cast<int>(viewsIterator->value[0].recommendedImageRectWidth), static_cast<int>(viewsIterator->value[0].recommendedImageRectHeight) };
+    return Device::recommendedResolution(mode);
 }
 
 void OpenXRDevice::initializeTrackingAndRendering(SessionMode mode)
@@ -541,9 +541,9 @@ XrResult OpenXRDevice::beginSession()
     return result;
 }
 
-Device::FrameData::ViewData xrViewToViewData(XrView view)
+Device::FrameData::PoseData xrViewToPoseData(XrView view)
 {
-    Device::FrameData::ViewData data;
+    Device::FrameData::PoseData data;
     data.fov = { view.fov.angleUp, view.fov.angleDown, view.fov.angleLeft, view.fov.angleRight };
     data.pose.orientation = { view.pose.orientation.x, view.pose.orientation.y, view.pose.orientation.z, view.pose.orientation.w };
     data.pose.position = { view.pose.position.x, view.pose.position.y, view.pose.position.z };
@@ -600,7 +600,7 @@ void OpenXRDevice::requestFrame(RequestFrameCallback&& callback)
             result = xrLocateViews(m_session, &viewLocateInfo, &viewState, viewCount, &viewCountOutput, views.data());
             if (!XR_FAILED(result)) {
                 for (auto& view : views)
-                    frameData.viewPoses.append(xrViewToViewData(view));
+                    frameData.viewPoses.append(xrViewToPoseData(view));
             }
         }
 
@@ -615,6 +615,22 @@ void OpenXRDevice::requestFrame(RequestFrameCallback&& callback)
         result = xrEndFrame(m_session, &frameEndInfo);
         RETURN_IF_FAILED(result, "xrEndFrame", m_instance);
     });
+}
+
+Vector<Device::ViewData> OpenXRDevice::views(SessionMode mode) const
+{
+    Vector<Device::ViewData> views;
+    auto configurationType = toXrViewConfigurationType(mode);
+
+    if (configurationType == XR_VIEW_CONFIGURATION_TYPE_PRIMARY_MONO)
+        views.append({ .active = true, .eye = Eye::None });
+    else {
+        ASSERT(configurationType == XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO);
+        // OpenXR lists first the left eye and then the right eye.
+        views.append({ .active = true, Eye::Left });
+        views.append({ .active = true, Eye::Right });
+    }
+    return views;
 }
 
 } // namespace PlatformXR
