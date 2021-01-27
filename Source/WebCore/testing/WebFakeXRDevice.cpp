@@ -31,12 +31,24 @@
 #include "DOMPointReadOnly.h"
 #include "JSDOMPromiseDeferred.h"
 #include "WebFakeXRInputController.h"
+#include <wtf/CompletionHandler.h>
 
 namespace WebCore {
 
 void FakeXRView::setFieldOfView(FakeXRViewInit::FieldOfViewInit fov)
 {
     m_fov = fov;
+}
+
+SimulatedXRDevice::SimulatedXRDevice()
+    : m_frameTimer(*this, &SimulatedXRDevice::frameTimerFired)
+{
+    m_supportsOrientationTracking = true;
+}
+
+SimulatedXRDevice::~SimulatedXRDevice()
+{
+    stopTimer();
 }
 
 void SimulatedXRDevice::simulateShutdownCompleted()
@@ -49,6 +61,28 @@ void SimulatedXRDevice::shutDownTrackingAndRendering()
 {
     if (m_supportsShutdownNotification)
         simulateShutdownCompleted();
+    stopTimer();
+}
+
+void SimulatedXRDevice::stopTimer()
+{
+    if (m_frameTimer.isActive())
+        m_frameTimer.stop();
+}
+
+void SimulatedXRDevice::frameTimerFired()
+{
+    Vector<RequestFrameCallback> runningCallbacks;
+    runningCallbacks.swap(m_callbacks);
+    for (auto& callback : runningCallbacks)
+        callback({ });
+}
+
+void SimulatedXRDevice::requestFrame(RequestFrameCallback&& callback)
+{
+    m_callbacks.append(WTFMove(callback));
+    if (!m_frameTimer.isActive())
+        m_frameTimer.startOneShot(15_ms);
 }
 
 WebFakeXRDevice::WebFakeXRDevice() = default;
