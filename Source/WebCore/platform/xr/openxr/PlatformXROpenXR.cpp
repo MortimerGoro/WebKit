@@ -74,6 +74,9 @@ private:
 
     XrInstance m_instance { XR_NULL_HANDLE };
     Ref<WorkQueue> m_workQueue;
+
+    using ReferenceSpacesMap = HashMap<ReferenceSpaceType, XrSpace*, IntHash<ReferenceSpaceType>, WTF::StrongEnumHashTraits<ReferenceSpaceType>>;
+    ReferenceSpacesMap m_referenceSpaces;
 };
 
 void Instance::Impl::enumerateApiLayerProperties() const
@@ -236,6 +239,24 @@ void Instance::enumerateImmersiveXRDevices(CompletionHandler<void(const DeviceLi
     });
 }
 
+static XrReferenceSpaceType toXrReferenceSpaceType(ReferenceSpaceType type)
+{
+    switch (type) {
+    case ReferenceSpaceType::Viewer:
+        return XR_REFERENCE_SPACE_TYPE_VIEW;
+    case ReferenceSpaceType::Local:
+        return XR_REFERENCE_SPACE_TYPE_LOCAL;
+    case ReferenceSpaceType::LocalFloor:
+    case ReferenceSpaceType::BoundedFloor:
+        return XR_REFERENCE_SPACE_TYPE_STAGE;
+    case ReferenceSpaceType::Unbounded:
+        return XR_REFERENCE_SPACE_TYPE_UNBOUNDED_MSFT;
+    default:
+        ASSERT_NOT_REACHED("Unrecognized reference space type %d", type);
+        return XR_REFERENCE_SPACE_TYPE_VIEW;
+    };
+}
+
 OpenXRDevice::OpenXRDevice(XrSystemId id, XrInstance instance, WorkQueue& queue, CompletionHandler<void()>&& callback)
     : m_systemId(id)
     , m_instance(instance)
@@ -302,6 +323,32 @@ Device::ListOfEnabledFeatures OpenXRDevice::enumerateReferenceSpaces(XrSession& 
     }
 
     return enabledFeatures;
+}
+
+void OpenXRDevice::initializeReferenceSpace(ReferenceSpaceType type)
+{
+    m_queue.dispatch([this, type]() {
+        ASSERT(m_session != XR_NULL_HANDLE);
+        ASSERT(m_instance != XR_NULL_HANDLE);
+        if (m_referenceSpaces.contains(type))
+            return;
+
+        XrPosef identityPose = {
+            .orientation = { .x = 0, .y = 0, .z = 0, .w = 1.0 },
+            .position = { .x = 0, .y = 0, .z = 0 }
+        };
+
+        auto spaceCreateInfo = createStructure<XrReferenceSpaceCreateInfo, XR_TYPE_REFERENCE_SPACE_CREATE_INFO>();
+        spaceCreateInfo.referenceSpaceType = toXrReferenceSpaceType(type);
+        spaceCreateInfo.poseInReferenceSpace = identityPose;
+
+        XrSpace space;
+        auto result = xrCreateReferenceSpace(m_session, &spaceCreateInfo, &space);
+        RETURN_IF_FAILED(result, "xrCreateReferenceSpace", m_instance);
+
+        m_referenceSpaces.add(type, space);
+        LOG(XR, "Created reference space of type %d", type);
+    });
 }
 
 void OpenXRDevice::collectSupportedSessionModes()
@@ -414,17 +461,160 @@ void OpenXRDevice::initializeTrackingAndRendering(SessionMode mode)
 
 void OpenXRDevice::resetSession()
 {
-    m_queue.dispatch([this]() {
-        if (m_session == XR_NULL_HANDLE)
-            return;
+    ASSERT(&RunLoop::current() == &m_queue.runLoop());
+    if (m_session != XR_NULL_HANDLE) {
         xrDestroySession(m_session);
         m_session = XR_NULL_HANDLE;
-    });
+    }
+    m_sessionState = XR_SESSION_STATE_UNKNOWN;
 }
 
 void OpenXRDevice::shutDownTrackingAndRendering()
 {
-    resetSession();
+    // xrRequestExitSession() will transition the session to STOPPED state and then the requestFrame() method will call reset.
+    // If the session was not running we have to reset the session ourselves.
+    if (XR_FAILED(xrRequestExitSession(m_session))) {
+        resetSession();
+        return;
+    }
+
+    // Ensure that requestFrame() is called at least one more time to properly end the session.
+    callOnMainThread([this, weakThis = makeWeakPtr(this)]() {
+        if (!weakThis)
+            return;
+        requestFrame([](FrameData) { });
+    });
+}
+
+void OpenXRDevice::pollEvents()
+{
+    ASSERT(!isMainThread());
+    auto runtimeEvent = createStructure<XrEventDataBuffer, XR_TYPE_EVENT_DATA_BUFFER>();
+    while (xrPollEvent(m_instance, &runtimeEvent) == XR_SUCCESS) {
+        switch (runtimeEvent.type) {
+        case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED: {
+            auto* event = (XrEventDataSessionStateChanged*)&runtimeEvent;
+            m_sessionState = event->state;
+            break;
+        }
+        case XR_TYPE_EVENT_DATA_EVENTS_LOST:
+        case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING:
+        case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING:
+        case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED:
+        case XR_TYPE_EVENT_DATA_MAIN_SESSION_VISIBILITY_CHANGED_EXTX:
+        case XR_TYPE_EVENT_DATA_VISIBILITY_MASK_CHANGED_KHR:
+        case XR_TYPE_EVENT_DATA_PERF_SETTINGS_EXT:
+            break;
+        default:
+            ASSERT_NOT_REACHED("Unhandled event type %d\n", runtimeEvent.type);
+        }
+    }
+}
+
+bool sessionIsVisible(XrSessionState state)
+{
+    return state <= XR_SESSION_STATE_FOCUSED;
+}
+
+bool sessionShouldStop(XrSessionState state)
+{
+    return state >= XR_SESSION_STATE_STOPPING;
+}
+
+bool sessionIsActive(XrSessionState state)
+{
+    return state == XR_SESSION_STATE_VISIBLE || state == XR_SESSION_STATE_FOCUSED;
+}
+
+XrResult OpenXRDevice::beginSession()
+{
+    ASSERT(!isMainThread());
+    ASSERT(m_sessionState == XR_SESSION_STATE_READY);
+
+    auto sessionBeginInfo = createStructure<XrSessionBeginInfo, XR_TYPE_SESSION_BEGIN_INFO>();
+    sessionBeginInfo.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
+    auto result = xrBeginSession(m_session, &sessionBeginInfo);
+#if !LOG_DISABLED
+    if (XR_FAILED(result))
+        LOG(XR, "%s %s: %s\n", __func__, "xrBeginSession", resultToString(result, m_instance).utf8().data());
+#endif
+    return result;
+}
+
+Device::FrameData::ViewData xrViewToViewData(XrView view)
+{
+    Device::FrameData::ViewData data;
+    data.fov = { view.fov.angleUp, view.fov.angleDown, view.fov.angleLeft, view.fov.angleRight };
+    data.pose.orientation = { view.pose.orientation.x, view.pose.orientation.y, view.pose.orientation.z, view.pose.orientation.w };
+    data.pose.position = { view.pose.position.x, view.pose.position.y, view.pose.position.z };
+    return data;
+}
+
+void OpenXRDevice::requestFrame(RequestFrameCallback&& callback)
+{
+    m_queue.dispatch([this, callback = WTFMove(callback)]() mutable {
+        XrSessionState oldSessionState = m_sessionState;
+        pollEvents();
+        if (sessionShouldStop(m_sessionState)) {
+            // FIXME: notify with some event.
+            xrEndSession(m_session);
+            resetSession();
+            return;
+        }
+
+        if (m_sessionState == XR_SESSION_STATE_READY && m_sessionState != oldSessionState)
+            beginSession();
+
+        auto frameState = createStructure<XrFrameState, XR_TYPE_FRAME_STATE>();
+        auto frameWaitInfo = createStructure<XrFrameWaitInfo, XR_TYPE_FRAME_WAIT_INFO>();
+        auto result = xrWaitFrame(m_session, &frameWaitInfo, &frameState);
+        RETURN_IF_FAILED(result, "xrWaitFrame", m_instance);
+        XrTime predictedTime = frameState.predictedDisplayTime;
+
+        auto frameBeginInfo = createStructure<XrFrameBeginInfo, XR_TYPE_FRAME_BEGIN_INFO>();
+        result = xrBeginFrame(m_session, &frameBeginInfo);
+        RETURN_IF_FAILED(result, "xrBeginFrame", m_instance);
+
+        Device::FrameData frameData;
+        frameData.predictedDisplayTime = frameState.predictedDisplayTime;
+
+        if (sessionIsActive(m_sessionState)) {
+            ASSERT(m_configurationViews.contains(m_currentViewConfigurationType));
+            const auto& configurationView = m_configurationViews.get(m_currentViewConfigurationType);
+
+            auto viewLocateInfo = createStructure<XrViewLocateInfo, XR_TYPE_VIEW_LOCATE_INFO>();
+            viewLocateInfo.displayTime = predictedTime;
+            // FIXME: use the current reference space.
+            // viewLocateInfo.space = m_localSpace;
+
+            uint32_t viewCount = configurationView.size();
+            Vector<XrView> views(viewCount, [] {
+                XrView object;
+                std::memset(&object, 0, sizeof(XrView));
+                object.type = XR_TYPE_VIEW;
+                return object;
+            }());
+
+            auto viewState = createStructure<XrViewState, XR_TYPE_VIEW_STATE>();
+            uint32_t viewCountOutput;
+            result = xrLocateViews(m_session, &viewLocateInfo, &viewState, viewCount, &viewCountOutput, views.data());
+            if (!XR_FAILED(result)) {
+                for (auto& view : views)
+                    frameData.viewPoses.append(xrViewToViewData(view));
+            }
+        }
+
+        callOnMainThread([frameData, callback = WTFMove(callback)]() {
+            callback(frameData);
+        });
+
+        auto frameEndInfo = createStructure<XrFrameEndInfo, XR_TYPE_FRAME_END_INFO>();
+        frameEndInfo.displayTime = predictedTime;
+        frameEndInfo.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+        frameEndInfo.layerCount = 0;
+        result = xrEndFrame(m_session, &frameEndInfo);
+        RETURN_IF_FAILED(result, "xrEndFrame", m_instance);
+    });
 }
 
 } // namespace PlatformXR

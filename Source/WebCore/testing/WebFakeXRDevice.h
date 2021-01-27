@@ -63,20 +63,29 @@ private:
 class SimulatedXRDevice final : public PlatformXR::Device {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    SimulatedXRDevice() { m_supportsOrientationTracking = true; }
+    SimulatedXRDevice();
+    ~SimulatedXRDevice();
     void setNativeBoundsGeometry(Vector<FakeXRBoundsPoint> geometry) { m_nativeBoundsGeometry = geometry; }
     void setViewerOrigin(RefPtr<WebXRRigidTransform>&& origin) { m_viewerOrigin = WTFMove(origin); }
     void setFloorOrigin(RefPtr<WebXRRigidTransform>&& origin) { m_floorOrigin = WTFMove(origin); }
     void setEmulatedPosition(bool emulated) { m_emulatedPosition = emulated; }
     Vector<Ref<FakeXRView>>& views() { return m_views; }
 private:
-    void initializeTrackingAndRendering(PlatformXR::SessionMode) final { }
-    void shutDownTrackingAndRendering() final { }
+    void initializeTrackingAndRendering(PlatformXR::SessionMode) final;
+    void shutDownTrackingAndRendering() final;
+    void initializeReferenceSpace(PlatformXR::ReferenceSpaceType) final { }
+    void requestFrame(RequestFrameCallback&&) final;
+
+    void frameTimerFired();
+
     Optional<Vector<FakeXRBoundsPoint>> m_nativeBoundsGeometry;
     RefPtr<WebXRRigidTransform> m_viewerOrigin;
     RefPtr<WebXRRigidTransform> m_floorOrigin;
     bool m_emulatedPosition { false };
     Vector<Ref<FakeXRView>> m_views;
+
+    Timer m_frameTimer;
+    Vector<RequestFrameCallback> m_callbacks;
 };
 
 class WebFakeXRDevice final : public RefCounted<WebFakeXRDevice> {

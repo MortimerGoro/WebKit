@@ -18,6 +18,7 @@
  */
 #pragma once
 
+#include "FloatPoint3D.h"
 #include "IntSize.h"
 #include <memory>
 #include <wtf/CompletionHandler.h>
@@ -61,6 +62,25 @@ public:
 
     virtual void initializeTrackingAndRendering(SessionMode) = 0;
     virtual void shutDownTrackingAndRendering() = 0;
+    virtual void initializeReferenceSpace(ReferenceSpaceType) = 0;
+
+    struct FrameData {
+        long predictedDisplayTime;
+        struct ViewData {
+            struct {
+                WebCore::FloatPoint3D position;
+                struct {
+                    float x, y, z, w;
+                } orientation;
+            } pose;
+            struct {
+                float rUp, rDown, rLeft, rRight;
+            } fov;
+        };
+        Vector<ViewData> viewPoses;
+    };
+    using RequestFrameCallback = WTF::Function<void(FrameData)>;
+    virtual void requestFrame(RequestFrameCallback&&) = 0;
 
 protected:
     Device() = default;

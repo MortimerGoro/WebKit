@@ -31,6 +31,7 @@
 #include "DOMPointReadOnly.h"
 #include "JSDOMPromiseDeferred.h"
 #include "WebFakeXRInputController.h"
+#include <wtf/CompletionHandler.h>
 
 namespace WebCore {
 
@@ -154,6 +155,42 @@ ExceptionOr<Ref<FakeXRView>> WebFakeXRDevice::parseView(const FakeXRViewInit& in
     }
 
     return fakeView;
+}
+
+SimulatedXRDevice::SimulatedXRDevice()
+    : m_frameTimer(*this, &SimulatedXRDevice::frameTimerFired)
+{
+    m_supportsOrientationTracking = true;
+}
+
+SimulatedXRDevice::~SimulatedXRDevice()
+{
+    m_frameTimer.stop();
+}
+
+void SimulatedXRDevice::frameTimerFired()
+{
+    Vector<RequestFrameCallback> runningCallbacks;
+    runningCallbacks.swap(m_callbacks);
+    for (auto& callback : runningCallbacks)
+        callback({ });
+}
+
+void SimulatedXRDevice::initializeTrackingAndRendering(PlatformXR::SessionMode)
+{
+}
+
+void SimulatedXRDevice::requestFrame(RequestFrameCallback&& callback)
+{
+    m_callbacks.append(WTFMove(callback));
+    if (!m_frameTimer.isActive())
+        m_frameTimer.startOneShot(15_ms);
+}
+
+void SimulatedXRDevice::shutDownTrackingAndRendering()
+{
+    if (m_frameTimer.isActive())
+        m_frameTimer.stop();
 }
 
 } // namespace WebCore

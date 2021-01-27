@@ -30,7 +30,7 @@
 #include "ActiveDOMObject.h"
 #include "EventTarget.h"
 #include "JSDOMPromiseDeferred.h"
-#include "Timer.h"
+#include "WebXRFrame.h"
 #include "WebXRInputSourceArray.h"
 #include "WebXRRenderState.h"
 #include "WebXRSpace.h"
@@ -101,10 +101,12 @@ private:
 
     void shutdown();
 
-    void animationTimerFired();
-    void scheduleAnimation();
-
     bool referenceSpaceIsSupported(XRReferenceSpaceType) const;
+
+    bool frameShouldBeRendered() const;
+    void requestFrame();
+    void onFrame(PlatformXR::Device::FrameData);
+    void applyPendingRenderState();
 
     XREnvironmentBlendMode m_environmentBlendMode;
     XRInteractionMode m_interactionMode;
@@ -117,13 +119,20 @@ private:
     WeakPtr<PlatformXR::Device> m_device;
     RefPtr<WebXRRenderState> m_activeRenderState;
     RefPtr<WebXRRenderState> m_pendingRenderState;
+    MonotonicTime m_timeOrigin;
 
     unsigned m_nextCallbackId { 1 };
     Vector<Ref<XRFrameRequestCallback>> m_callbacks;
     Vector<Ref<XRFrameRequestCallback>> m_runningCallbacks;
 
-    Timer m_animationTimer;
-    MonotonicTime m_lastAnimationFrameTimestamp;
+    Ref<WebXRFrame> m_animationFrame;
+
+    double m_minimumInlineFOV { 0.0 };
+    double m_maximumInlineFOV { piFloat };
+
+    // In meters.
+    double m_minimumNearClipPlane { 0.1 };
+    double m_maximumFarClipPlane { 1000.0 };
 };
 
 } // namespace WebCore
