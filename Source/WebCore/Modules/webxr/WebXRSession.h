@@ -91,6 +91,7 @@ public:
     const WebXRReferenceSpace& viewerReferenceSpace() { ASSERT(m_viewerReferenceSpace); return *m_viewerReferenceSpace; }
     const Vector<PlatformXR::Device::ViewData>& views() { return m_views; }
     bool posesCanBeReported() const;
+    const WebXRFrame& animationFrame() const { return m_animationFrame; }
 
 private:
     WebXRSession(Document&, WebXRSystem&, XRSessionMode, PlatformXR::Device&);
@@ -133,7 +134,6 @@ private:
     Vector<Ref<XRFrameRequestCallback>> m_runningCallbacks;
 
     Ref<WebXRFrame> m_animationFrame;
-    MonotonicTime m_lastAnimationFrameTimestamp;
 
     // We hold a pointer just to avoid a ref cycle but we must unref it.
     WebXRReferenceSpace* m_viewerReferenceSpace;

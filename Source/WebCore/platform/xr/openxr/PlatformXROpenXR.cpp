@@ -347,7 +347,7 @@ void OpenXRDevice::initializeReferenceSpace(ReferenceSpaceType type)
         RETURN_IF_FAILED(result, "xrCreateReferenceSpace", m_instance);
 
         m_referenceSpaces.add(type, space);
-        LOG(XR, "Created reference space of type %d", type);
+        LOG(XR, "Created reference space of type %d", (int)type);
     });
 }
 
@@ -541,12 +541,13 @@ XrResult OpenXRDevice::beginSession()
     return result;
 }
 
-Device::FrameData::PoseData xrViewToPoseData(XrView view)
+Device::FrameData::ViewPose xrViewToPoseData(XrView view)
 {
-    Device::FrameData::PoseData data;
-    data.fov = { view.fov.angleUp, view.fov.angleDown, view.fov.angleLeft, view.fov.angleRight };
-    data.pose.orientation = { view.pose.orientation.x, view.pose.orientation.y, view.pose.orientation.z, view.pose.orientation.w };
-    data.pose.position = { view.pose.position.x, view.pose.position.y, view.pose.position.z };
+    Device::FrameData::ViewPose data;
+    // TODO
+    // data.fov = { view.fov.angleUp, view.fov.angleDown, view.fov.angleLeft, view.fov.angleRight };
+    data.offset.orientation = { view.pose.orientation.x, view.pose.orientation.y, view.pose.orientation.z, view.pose.orientation.w };
+    data.offset.position = { view.pose.position.x, view.pose.position.y, view.pose.position.z };
     return data;
 }
 
@@ -575,7 +576,7 @@ void OpenXRDevice::requestFrame(RequestFrameCallback&& callback)
         result = xrBeginFrame(m_session, &frameBeginInfo);
         RETURN_IF_FAILED(result, "xrBeginFrame", m_instance);
 
-        Device::FrameData frameData;
+        Device::FrameData frameData = {};
         frameData.predictedDisplayTime = frameState.predictedDisplayTime;
 
         if (sessionIsActive(m_sessionState)) {
@@ -600,7 +601,7 @@ void OpenXRDevice::requestFrame(RequestFrameCallback&& callback)
             result = xrLocateViews(m_session, &viewLocateInfo, &viewState, viewCount, &viewCountOutput, views.data());
             if (!XR_FAILED(result)) {
                 for (auto& view : views)
-                    frameData.viewPoses.append(xrViewToPoseData(view));
+                    frameData.views.append(xrViewToPoseData(view));
             }
         }
 

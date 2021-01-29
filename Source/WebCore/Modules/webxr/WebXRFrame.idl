@@ -34,5 +34,5 @@
     [SameObject] readonly attribute WebXRSession session;
 
     [MayThrowException] WebXRViewerPose? getViewerPose(WebXRReferenceSpace referenceSpace);
-    WebXRPose? getPose(WebXRSpace space, WebXRSpace baseSpace);
+    [MayThrowException] WebXRPose? getPose(WebXRSpace space, WebXRSpace baseSpace);
 };

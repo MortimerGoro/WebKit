@@ -29,6 +29,7 @@
 
 #include "ContextDestructionObserver.h"
 #include "EventTarget.h"
+#include "TransformationMatrix.h"
 #include <wtf/RefCounted.h>
 
 namespace WebCore {
@@ -45,6 +46,9 @@ public:
 
     const WebXRSession& session() const { return m_session.get(); }
 
+    virtual TransformationMatrix nativeOrigin() const = 0;
+    TransformationMatrix effectiveOrigin() const;
+
     virtual bool isReferenceSpace() const { return false; }
     virtual bool isBoundedReferenceSpace() const { return false; }
 
@@ -52,7 +56,7 @@ public:
     using RefCounted<WebXRSpace>::deref;
 
 protected:
-    WebXRSpace(Document&, Ref<WebXRSession>&&);
+    WebXRSpace(Document&, Ref<WebXRSession>&&, Ref<WebXRRigidTransform>&&);
 
     // EventTarget
     ScriptExecutionContext* scriptExecutionContext() const override { return ContextDestructionObserver::scriptExecutionContext(); }

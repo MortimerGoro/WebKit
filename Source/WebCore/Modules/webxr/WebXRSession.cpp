@@ -60,7 +60,7 @@ WebXRSession::WebXRSession(Document& document, WebXRSystem& system, XRSessionMod
     , m_device(makeWeakPtr(device))
     , m_activeRenderState(WebXRRenderState::create(mode))
     , m_timeOrigin(MonotonicTime::now())
-    , m_animationFrame(WebXRFrame::create(*this, true)),
+    , m_animationFrame(WebXRFrame::create(*this, true))
     , m_views(device.views(mode))
 {
     m_device->initializeTrackingAndRendering(mode);
@@ -464,7 +464,7 @@ void WebXRSession::onFrame(PlatformXR::Device::FrameData frameData)
             m_animationFrame->setActive(true);
 
             // 6.4.Apply frame updates for frame.
-            // FIXME: implement.
+            m_animationFrame->setFrameData(frameData);
 
             // 6.5.For each entry in session’s list of currently running animation frame callbacks, in order:
             for (auto& callback : m_runningCallbacks) {

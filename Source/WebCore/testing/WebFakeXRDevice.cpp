@@ -35,9 +35,13 @@
 
 namespace WebCore {
 
+void FakeXRView::setProjection(const Vector<float>& projection) {
+    std::copy(std::begin(projection), std::end(projection), std::begin(m_projection));
+}
+
 void FakeXRView::setFieldOfView(FakeXRViewInit::FieldOfViewInit fov)
 {
-    m_fov = fov;
+
 }
 
 WebFakeXRDevice::WebFakeXRDevice() = default;
@@ -136,12 +140,12 @@ ExceptionOr<Ref<FakeXRView>> WebFakeXRDevice::parseView(const FakeXRViewInit& in
 
     if (init.projectionMatrix.size() != 16)
         return Exception { TypeError };
-    fakeView->view()->setProjectionMatrix(init.projectionMatrix);
+    fakeView->setProjection(init.projectionMatrix);
 
     auto viewOffset = parseRigidTransform(init.viewOffset);
     if (viewOffset.hasException())
         return viewOffset.releaseException();
-    fakeView->view()->setTransform(viewOffset.releaseReturnValue());
+    fakeView->setOffset(viewOffset.releaseReturnValue());
 
     fakeView->setResolution(init.resolution);
 
@@ -170,14 +174,41 @@ SimulatedXRDevice::~SimulatedXRDevice()
 
 void SimulatedXRDevice::frameTimerFired()
 {
+    FrameData data = {};
+    if (m_viewerOrigin) {
+        auto& position = m_viewerOrigin->position();
+        auto& orientation = m_viewerOrigin->orientation();
+        data.origin.position = { (float)position.x(), (float) position.y(), (float) position.z() };
+        data.origin.orientation = { (float)orientation.x(), (float)orientation.y(), (float)orientation.z(), (float)orientation.w() };
+    }
+
+    for (auto& view: m_views) {
+        FrameData::ViewPose pose = {};
+        auto& position = view->offset()->position();
+        auto& orientation = view->offset()->orientation();
+        pose.offset.position = { (float)position.x(), (float)position.y(), (float)position.z() };
+        pose.offset.orientation = { (float)orientation.x(), (float)orientation.y(), (float)orientation.z(), (float)orientation.w() };
+        pose.projection = view->projection();
+        data.views.append(pose);
+    }
+
+
     Vector<RequestFrameCallback> runningCallbacks;
     runningCallbacks.swap(m_callbacks);
     for (auto& callback : runningCallbacks)
-        callback({ });
+        callback(data);
 }
 
 void SimulatedXRDevice::initializeTrackingAndRendering(PlatformXR::SessionMode)
 {
+}
+
+Vector<PlatformXR::Device::ViewData> SimulatedXRDevice::views(PlatformXR::SessionMode mode) const {
+    if (mode == PlatformXR::SessionMode::ImmersiveVr) {
+        return { { .active = true, PlatformXR::Eye::Left }, { .active = true, PlatformXR::Eye::Right } };
+    } else {
+        return { { .active = true, PlatformXR::Eye::None } };
+    }
 }
 
 void SimulatedXRDevice::requestFrame(RequestFrameCallback&& callback)

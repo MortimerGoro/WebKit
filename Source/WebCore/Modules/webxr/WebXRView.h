@@ -51,7 +51,7 @@ public:
     const Float32Array& projectionMatrix() const { return *m_projectionMatrix; }
     const WebXRRigidTransform& transform() const { return *m_transform; }
 
-    WEBCORE_EXPORT void setProjectionMatrix(const Vector<float>&);
+    WEBCORE_EXPORT void setProjectionMatrix(const std::array<float, 16>&);
     void setTransform(RefPtr<WebXRRigidTransform>&& viewOffset) { m_transform = WTFMove(viewOffset); }
 
 private:

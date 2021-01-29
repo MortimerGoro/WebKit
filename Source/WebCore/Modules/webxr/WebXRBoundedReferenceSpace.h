@@ -40,13 +40,15 @@ class WebXRBoundedReferenceSpace : public WebXRReferenceSpace {
     WTF_MAKE_ISO_ALLOCATED(WebXRBoundedReferenceSpace);
 public:
     static Ref<WebXRBoundedReferenceSpace> create(Document&, Ref<WebXRSession>&&, XRReferenceSpaceType);
+    static Ref<WebXRBoundedReferenceSpace> create(Document&, Ref<WebXRSession>&&, Ref<WebXRRigidTransform>&&, XRReferenceSpaceType);
 
     virtual ~WebXRBoundedReferenceSpace();
 
     const Vector<Ref<DOMPointReadOnly>>& boundsGeometry() const;
+    RefPtr<WebXRReferenceSpace> getOffsetReferenceSpace(const WebXRRigidTransform&) final;
 
 private:
-    WebXRBoundedReferenceSpace(Document&, Ref<WebXRSession>&&, XRReferenceSpaceType);
+    WebXRBoundedReferenceSpace(Document&, Ref<WebXRSession>&&, Ref<WebXRRigidTransform>&&, XRReferenceSpaceType);
 
     bool isBoundedReferenceSpace() const final { return true; }
 

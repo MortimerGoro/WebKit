@@ -71,29 +71,34 @@ public:
     virtual void initializeReferenceSpace(ReferenceSpaceType) = 0;
 
     struct FrameData {
-        long predictedDisplayTime;
-        struct PoseData {
-            struct {
-                WebCore::FloatPoint3D position;
-                struct {
-                    float x, y, z, w;
-                } orientation;
-            } pose;
-            struct {
-                float rUp, rDown, rLeft, rRight;
-            } fov;
+        struct FloatQuaternion {
+            float x = 0, y = 0, z = 0, w = 1;
         };
-        Vector<PoseData> viewPoses;
+
+        struct Pose {
+            WebCore::FloatPoint3D position;
+            FloatQuaternion orientation;
+        };
+
+        struct ViewPose {
+            Pose offset;
+            std::array<float, 16> projection;
+        };
+
+        long predictedDisplayTime;
+        Pose origin;
+        Vector<ViewPose> views;
     };
-    using RequestFrameCallback = WTF::Function<void(FrameData)>;
-    virtual void requestFrame(RequestFrameCallback&&) = 0;
 
     struct ViewData {
         bool active;
         Eye eye;
     };
+
     virtual Vector<ViewData> views(SessionMode) const = 0;
 
+    using RequestFrameCallback = WTF::Function<void(FrameData)>;
+    virtual void requestFrame(RequestFrameCallback&&) = 0;
 protected:
     Device() = default;
 

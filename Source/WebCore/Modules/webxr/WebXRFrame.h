@@ -29,6 +29,7 @@
 
 #include "DOMHighResTimeStamp.h"
 #include "ExceptionOr.h"
+#include "PlatformXR.h"
 #include <wtf/IsoMalloc.h>
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
@@ -52,18 +53,25 @@ public:
 
     bool mustPosesBeLimited(const WebXRSpace&, const WebXRSpace& baseSpace);
     ExceptionOr<RefPtr<WebXRViewerPose>> getViewerPose(const WebXRReferenceSpace&);
-    RefPtr<WebXRPose> getPose(const WebXRSpace&, const WebXRSpace&);
+    ExceptionOr<RefPtr<WebXRPose>> getPose(const WebXRSpace&, const WebXRSpace&);
 
     void setTime(DOMHighResTimeStamp time) { m_time = time; }
+    void setFrameData(const PlatformXR::Device::FrameData& data) { m_data = data; }
+    const PlatformXR::Device::FrameData& getFrameData() const { return m_data; }
+
     void setActive(bool active) { m_active = active; }
     bool isActive() const { return m_active; }
 
 private:
     WebXRFrame(WebXRSession&, bool isAnimationFrame);
 
+    struct PopulatedPose;
+    ExceptionOr<Optional<PopulatedPose>> populatePose(const WebXRSpace& space, const WebXRSpace& baseSpace);
+
     bool m_active { false };
     bool m_animationFrame { false };
     DOMHighResTimeStamp m_time;
+    PlatformXR::Device::FrameData m_data;
 
     // Session owns the frame.
     WebXRSession& m_session;

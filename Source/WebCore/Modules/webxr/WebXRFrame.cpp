@@ -36,6 +36,14 @@
 
 namespace WebCore {
 
+static TransformationMatrix matrixFromPose(const PlatformXR::Device::FrameData::Pose& pose)
+{
+    TransformationMatrix matrix;
+    matrix.translate3d(pose.position.x(), pose.position.y(), pose.position.z());
+    matrix.multiply(TransformationMatrix::fromQuaternion(pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w));
+    return matrix;
+}
+
 WTF_MAKE_ISO_ALLOCATED_IMPL(WebXRFrame);
 
 Ref<WebXRFrame> WebXRFrame::create(WebXRSession& session, bool isAnimationFrame)
@@ -56,6 +64,7 @@ WebXRFrame::~WebXRFrame() = default;
 bool WebXRFrame::mustPosesBeLimited(const WebXRSpace& space, const WebXRSpace& baseSpace)
 {
     auto isOutsideNativeBoundsOfBoundedReferenceSpace = [] (const WebXRSpace& space, const WebXRSpace& other) {
+        UNUSED_PARAM(other);
         if (!is<WebXRBoundedReferenceSpace>(space))
             return false;
 
@@ -89,8 +98,14 @@ bool WebXRFrame::mustPosesBeLimited(const WebXRSpace& space, const WebXRSpace& b
     return false;
 }
 
+
+struct WebXRFrame::PopulatedPose {
+    TransformationMatrix transform;
+    bool emulatedPosition;
+};
+
 // https://immersive-web.github.io/webxr/#populate-the-pose
-ExceptionOr<void> WebXRFrame::populatePose(WebXRPose& pose, const WebXRSpace& space, const WebXRSpace& baseSpace)
+ExceptionOr<Optional<WebXRFrame::PopulatedPose>> WebXRFrame::populatePose(const WebXRSpace& space, const WebXRSpace& baseSpace)
 {
     // 1. If frame’s active boolean is false, throw an InvalidStateError and abort these steps.
     if (!m_active)
@@ -113,10 +128,19 @@ ExceptionOr<void> WebXRFrame::populatePose(WebXRPose& pose, const WebXRSpace& sp
     bool limit = mustPosesBeLimited(space, baseSpace);
 
     // 7. Let transform be pose’s transform.
-    // 8. Query the XR device's tracking system for space’s pose relative to baseSpace at the frame’s time,
-    //    then perform the following steps:
-    // TODO: ask platform for data
-    return { };
+    // 8. Query the XR device's tracking system for space’s pose relative to baseSpace at the frame’s time.
+    TransformationMatrix baseTransform = baseSpace.effectiveOrigin();
+    if (!baseTransform.isInvertible())
+        return { WTF::nullopt };
+
+    TransformationMatrix transform = space.effectiveOrigin() * (*baseTransform.inverse());
+    const bool emulatedPosition = false;
+
+    if (limit) {
+        // TODO: apply pose limits
+    }
+
+    return { PopulatedPose { transform, emulatedPosition } };
 }
 
 // https://immersive-web.github.io/webxr/#dom-xrframe-getviewerpose
@@ -129,22 +153,24 @@ ExceptionOr<RefPtr<WebXRViewerPose>> WebXRFrame::getViewerPose(const WebXRRefere
         return Exception { InvalidStateError };
 
     // 4. Let pose be a new XRViewerPose object in the relevant realm of session.
-    RefPtr<WebXRViewerPose> pose = WebXRViewerPose::create();
-
     // 5. Populate the pose of session’s viewer reference space in referenceSpace at the time represented by frame into pose.
-    auto populatePoseResult = populatePose(*pose, m_session.viewerReferenceSpace(), referenceSpace);
+    auto populatePoseResult = populatePose(m_session.viewerReferenceSpace(), referenceSpace);
     if (populatePoseResult.hasException())
         return populatePoseResult.releaseException();
 
     // 6. If pose is null return null.
-    if (!pose)
+    auto populateValue = populatePoseResult.releaseReturnValue();
+    if (!populateValue.hasValue())
         return nullptr;
+
+    RefPtr<WebXRViewerPose> pose = WebXRViewerPose::create(WebXRRigidTransform::create(populateValue->transform), populateValue->emulatedPosition);
 
     // 7. Let xrviews be an empty list.
     Vector<Ref<WebXRView>> xrViews;
     // 8. For each active view view in the list of views on session, perform the following steps:
+    uint32_t index = 0;
     for (auto& view : m_session.views()) {
-        if (!view.active)
+        if (!view.active || m_data.views.size() <= index)
             continue;
 
         // 8.1 Let xrview be a new XRView object in the relevant realm of session.
@@ -156,9 +182,13 @@ ExceptionOr<RefPtr<WebXRViewerPose>> WebXRFrame::getViewerPose(const WebXRRefere
 
         //  8.6. Let offset be an new XRRigidTransform object equal to the view offset of view in the relevant realm of session.
         //  8.7. Set xrview’s transform property to the result of multiplying the XRViewerPose's transform by the offset transform in the relevant realm of session
+        TransformationMatrix offset = matrixFromPose(m_data.views[index].offset);
+        xrView->setTransform(WebXRRigidTransform::create(pose->transform().rawTransform() * offset));
+        xrView->setProjectionMatrix(m_data.views[index].projection);
 
         //  8.8. Append xrview to xrviews
         xrViews.append(WTFMove(xrView));
+        ++index;
     }
 
     // 9. Set pose’s views to xrviews
@@ -168,9 +198,24 @@ ExceptionOr<RefPtr<WebXRViewerPose>> WebXRFrame::getViewerPose(const WebXRRefere
     return pose;
 }
 
-RefPtr<WebXRPose> WebXRFrame::getPose(const WebXRSpace&, const WebXRSpace&)
+ExceptionOr<RefPtr<WebXRPose>> WebXRFrame::getPose(const WebXRSpace& space, const WebXRSpace& baseSpace)
 {
-    return { };
+    // 1. Let frame be this.
+    // 2. Let pose be a new XRPose object in the relevant realm of frame.
+    // 3. Populate the pose of space in baseSpace at the time represented by frame into pose.
+
+    auto populatePoseResult = populatePose(space, baseSpace);
+    if (populatePoseResult.hasException())
+        return populatePoseResult.releaseException();
+
+    auto populateValue = populatePoseResult.releaseReturnValue();
+    if (!populateValue.hasValue())
+        return nullptr;
+
+    RefPtr<WebXRPose> pose = WebXRPose::create(WebXRRigidTransform::create(populateValue->transform), populateValue->emulatedPosition);
+
+    // 4. Return pose.
+    return pose;
 }
 
 } // namespace WebCore

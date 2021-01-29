@@ -50,7 +50,7 @@ WebXRView::WebXRView(const PlatformXR::Device::ViewData& viewData, DOMHighResTim
 
 WebXRView::~WebXRView() = default;
 
-void WebXRView::setProjectionMatrix(const Vector<float>& matrix)
+void WebXRView::setProjectionMatrix(const std::array<float, 16>& matrix)
 {
     m_projectionMatrix = Float32Array::create(matrix.data(), matrix.size());
 }
