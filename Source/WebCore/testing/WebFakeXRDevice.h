@@ -47,11 +47,12 @@ public:
     XREye eye() const { return m_eye; }
     const RefPtr<WebXRRigidTransform>& offset() const { return m_offset; }
     const std::array<float, 16>& projection() const { return m_projection; }
+    const Optional<PlatformXR::Device::FrameData::Fov>& fieldOfView() const { return m_fov;}
 
     void setResolution(FakeXRViewInit::DeviceResolution resolution) { m_resolution = resolution; }
     void setOffset(RefPtr<WebXRRigidTransform>&& offset) { m_offset = WTFMove(offset); }
     void setProjection(const Vector<float>&);
-    void setFieldOfView(FakeXRViewInit::FieldOfViewInit);
+    void setFieldOfView(const FakeXRViewInit::FieldOfViewInit&);
 private:
     FakeXRView(XREye eye): m_eye(eye)
     {
@@ -62,6 +63,7 @@ private:
     FakeXRViewInit::DeviceResolution m_resolution;
     RefPtr<WebXRRigidTransform> m_offset;
     std::array<float, 16> m_projection;
+    Optional<PlatformXR::Device::FrameData::Fov> m_fov;
 };
 
 class SimulatedXRDevice final : public PlatformXR::Device {
@@ -75,11 +77,11 @@ public:
     void setEmulatedPosition(bool emulated) { m_emulatedPosition = emulated; }
     Vector<Ref<FakeXRView>>& views() { return m_views; }
 private:
-    void initializeTrackingAndRendering(PlatformXR::SessionMode) override final;
-    void shutDownTrackingAndRendering() override final;
-    void initializeReferenceSpace(PlatformXR::ReferenceSpaceType) override final { }
-    Vector<PlatformXR::Device::ViewData> views(XRSessionMode) const override final;
-    void requestFrame(RequestFrameCallback&&) override  final;
+    void initializeTrackingAndRendering(PlatformXR::SessionMode) final;
+    void shutDownTrackingAndRendering() final;
+    void initializeReferenceSpace(PlatformXR::ReferenceSpaceType) final { }
+    Vector<PlatformXR::Device::ViewData> views(XRSessionMode) const final;
+    void requestFrame(RequestFrameCallback&&) final;
 
     void frameTimerFired();
 

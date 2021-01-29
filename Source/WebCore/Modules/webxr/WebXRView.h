@@ -57,7 +57,7 @@ public:
 private:
     WebXRView(const PlatformXR::Device::ViewData&, DOMHighResTimeStamp, Ref<WebXRSession>&&);
 
-    const PlatformXR::Device::ViewData& m_viewData;
+    PlatformXR::Device::ViewData m_viewData;
     DOMHighResTimeStamp m_time;
     Ref<WebXRSession> m_session;
     RefPtr<Float32Array> m_projectionMatrix;

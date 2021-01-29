@@ -505,10 +505,18 @@ void WebXRSystem::DummyInlineDevice::requestFrame(PlatformXR::Device::RequestFra
     // Inline XR sessions rely on document.requestAnimationFrame to perform the render loop.
     auto document = downcast<Document>(m_scriptExecutionContext);
     auto raf = InlineRequestAnimationFrameCallback::create(*m_scriptExecutionContext, [callback = WTFMove(callback)]() mutable {
-        callback({ });
+
+        PlatformXR::Device::FrameData data;
+        data.views.append({ });
+        callback(data);
     });
 
     document->requestAnimationFrame(raf);
+}
+
+Vector<PlatformXR::Device::ViewData> WebXRSystem::DummyInlineDevice::views(XRSessionMode) const
+{
+    return { { .active = true, PlatformXR::Eye::None } };
 }
 
 

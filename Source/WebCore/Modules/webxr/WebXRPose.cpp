@@ -41,7 +41,7 @@ Ref<WebXRPose> WebXRPose::create(Ref<WebXRRigidTransform>&& transform, bool emul
 }
 
 WebXRPose::WebXRPose(Ref<WebXRRigidTransform>&& transform, bool emulatedPosition)
-    : m_transform(WebXRRigidTransform::create()), m_emulatedPosition(emulatedPosition)
+    : m_transform(WTFMove(transform)), m_emulatedPosition(emulatedPosition)
 {
 }
 

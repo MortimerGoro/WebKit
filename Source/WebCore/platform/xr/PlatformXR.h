@@ -24,6 +24,7 @@
 #include <wtf/CompletionHandler.h>
 #include <wtf/HashMap.h>
 #include <wtf/UniqueRef.h>
+#include <wtf/Variant.h>
 #include <wtf/Vector.h>
 #include <wtf/WeakPtr.h>
 
@@ -80,14 +81,21 @@ public:
             FloatQuaternion orientation;
         };
 
-        struct ViewPose {
+        struct Fov {
+            // in radians
+            float up, down, left, right;
+        };
+
+        using Projection = Variant<Fov, std::array<float, 16>>;
+
+        struct View {
             Pose offset;
-            std::array<float, 16> projection;
+            Projection projection;
         };
 
         long predictedDisplayTime;
         Pose origin;
-        Vector<ViewPose> views;
+        Vector<View> views;
     };
 
     struct ViewData {

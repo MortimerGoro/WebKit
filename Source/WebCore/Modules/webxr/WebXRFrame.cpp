@@ -44,6 +44,14 @@ static TransformationMatrix matrixFromPose(const PlatformXR::Device::FrameData::
     return matrix;
 }
 
+static void printMatrix(const TransformationMatrix& m, const char * msg) {
+    fprintf(stderr, "%s \n", msg);
+    fprintf(stderr, "%f %f %f %f \n", m.m11(), m.m12(), m.m13(), m.m14());
+    fprintf(stderr, "%f %f %f %f \n", m.m21(), m.m22(), m.m23(), m.m24());
+    fprintf(stderr, "%f %f %f %f \n", m.m31(), m.m32(), m.m33(), m.m34());
+    fprintf(stderr, "%f %f %f %f \n", m.m41(), m.m42(), m.m43(), m.m44());
+}
+
 WTF_MAKE_ISO_ALLOCATED_IMPL(WebXRFrame);
 
 Ref<WebXRFrame> WebXRFrame::create(WebXRSession& session, bool isAnimationFrame)
@@ -130,10 +138,13 @@ ExceptionOr<Optional<WebXRFrame::PopulatedPose>> WebXRFrame::populatePose(const 
     // 7. Let transform be pose’s transform.
     // 8. Query the XR device's tracking system for space’s pose relative to baseSpace at the frame’s time.
     TransformationMatrix baseTransform = baseSpace.effectiveOrigin();
+    printMatrix(baseTransform, "baseTransform::effectiveOrigin");
     if (!baseTransform.isInvertible())
         return { WTF::nullopt };
 
-    TransformationMatrix transform = space.effectiveOrigin() * (*baseTransform.inverse());
+    printMatrix(space.effectiveOrigin(), "space::effectiveOrigin");
+    TransformationMatrix transform =  *baseTransform.inverse() * space.effectiveOrigin();
+    printMatrix(transform, "populated");
     const bool emulatedPosition = false;
 
     if (limit) {

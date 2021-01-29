@@ -42,6 +42,7 @@ let testFunction = function(session, fakeDeviceController, t) {
         assert_matrix_approx_equals(translated_from_base.transform.matrix, offset.matrix, FLOAT_EPSILON);
       });
 
+
       // Rotate 90 degrees about x axis, then move 1 meter along y axis.
       space1 = space1.getOffsetReferenceSpace(new XRRigidTransform(
         DOMPointReadOnly.fromPoint({

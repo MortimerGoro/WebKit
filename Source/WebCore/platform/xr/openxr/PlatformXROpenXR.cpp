@@ -541,14 +541,13 @@ XrResult OpenXRDevice::beginSession()
     return result;
 }
 
-Device::FrameData::ViewPose xrViewToPoseData(XrView view)
+Device::FrameData::View xrViewToPoseData(XrView view)
 {
-    Device::FrameData::ViewPose data;
-    // TODO
-    // data.fov = { view.fov.angleUp, view.fov.angleDown, view.fov.angleLeft, view.fov.angleRight };
-    data.offset.orientation = { view.pose.orientation.x, view.pose.orientation.y, view.pose.orientation.z, view.pose.orientation.w };
-    data.offset.position = { view.pose.position.x, view.pose.position.y, view.pose.position.z };
-    return data;
+    Device::FrameData::View pose;
+    pose.projection = Device::FrameData::Fov { view.fov.angleUp, view.fov.angleDown, view.fov.angleLeft, view.fov.angleRight };
+    pose.offset.orientation = { view.pose.orientation.x, view.pose.orientation.y, view.pose.orientation.z, view.pose.orientation.w };
+    pose.offset.position = { view.pose.position.x, view.pose.position.y, view.pose.position.z };
+    return pose;
 }
 
 void OpenXRDevice::requestFrame(RequestFrameCallback&& callback)

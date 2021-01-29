@@ -32,6 +32,7 @@
 #include "JSDOMPromiseDeferred.h"
 #include "WebFakeXRInputController.h"
 #include <wtf/CompletionHandler.h>
+#include <wtf/MathExtras.h>
 
 namespace WebCore {
 
@@ -41,7 +42,7 @@ void FakeXRView::setProjection(const Vector<float>& projection) {
 
 void FakeXRView::setFieldOfView(FakeXRViewInit::FieldOfViewInit fov)
 {
-
+    m_fov = { deg2rad(fov.upDegrees), deg2rad(fov.downDegrees), deg2rad(fov.leftDegrees), deg2rad(fov.rightDegrees) };
 }
 
 WebFakeXRDevice::WebFakeXRDevice() = default;
@@ -151,11 +152,6 @@ ExceptionOr<Ref<FakeXRView>> WebFakeXRDevice::parseView(const FakeXRViewInit& in
 
     if (init.fieldOfView) {
         fakeView->setFieldOfView(init.fieldOfView.value());
-        // TODO: Set view’s projection matrix to the projection matrix
-        // corresponding to this field of view, and depth values equal to
-        // depthNear and depthFar of any XRSession associated with the device.
-        // If there currently is none, use the default values of near=0.1,
-        // far=1000.0.
     }
 
     return fakeView;
@@ -183,15 +179,19 @@ void SimulatedXRDevice::frameTimerFired()
     }
 
     for (auto& view: m_views) {
-        FrameData::ViewPose pose = {};
+        FrameData::View pose = {};
         auto& position = view->offset()->position();
         auto& orientation = view->offset()->orientation();
         pose.offset.position = { (float)position.x(), (float)position.y(), (float)position.z() };
         pose.offset.orientation = { (float)orientation.x(), (float)orientation.y(), (float)orientation.z(), (float)orientation.w() };
-        pose.projection = view->projection();
+        if (view->fov().hasValue()) {
+            pose.projection = *view->fov();
+        } else {
+            pose.projection = view->projection();
+        }
+        
         data.views.append(pose);
     }
-
 
     Vector<RequestFrameCallback> runningCallbacks;
     runningCallbacks.swap(m_callbacks);
