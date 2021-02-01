@@ -36,13 +36,14 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(WebXRFrame);
 
-Ref<WebXRFrame> WebXRFrame::create(Ref<WebXRSession>&& session)
+Ref<WebXRFrame> WebXRFrame::create(WebXRSession* session)
 {
-    return adoptRef(*new WebXRFrame(WTFMove(session)));
+    return adoptRef(*new WebXRFrame(session));
 }
 
-WebXRFrame::WebXRFrame(Ref<WebXRSession>&& session)
-    : m_session(WTFMove(session))
+WebXRFrame::WebXRFrame(WebXRSession* session)
+    : m_active(false)
+    , m_session(session)
 {
 }
 
@@ -50,7 +51,8 @@ WebXRFrame::~WebXRFrame() = default;
 
 const WebXRSession& WebXRFrame::session() const
 {
-    return m_session;
+    ASSERT(m_session);
+    return *m_session;
 }
 
 RefPtr<WebXRViewerPose> WebXRFrame::getViewerPose(const WebXRReferenceSpace&)
