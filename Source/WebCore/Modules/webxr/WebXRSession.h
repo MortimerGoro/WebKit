@@ -50,6 +50,7 @@ namespace WebCore {
 class XRFrameRequestCallback;
 class WebXRReferenceSpace;
 class WebXRSystem;
+class WebXRView;
 struct XRRenderStateInit;
 
 class WebXRSession final : public RefCounted<WebXRSession>, public EventTargetWithInlineData, public ActiveDOMObject, public PlatformXR::TrackingAndRenderingClient {
@@ -90,8 +91,15 @@ public:
 
     XRSessionMode mode() const { return m_mode; }
 
+    const WebXRReferenceSpace& viewerReferenceSpace() { ASSERT(m_viewerReferenceSpace); return *m_viewerReferenceSpace; }
+    const Vector<PlatformXR::Device::ViewData>& views() { return m_views; }
+    bool posesCanBeReported() const;
+    const WebXRFrame& animationFrame() const { return m_animationFrame; }
+
 private:
     WebXRSession(Document&, WebXRSystem&, XRSessionMode, PlatformXR::Device&);
+
+    void initializeViewerReferenceSpace(Document&);
 
     // EventTarget
     EventTargetInterface eventTargetInterface() const override { return WebXRSessionEventTargetInterfaceType; }
@@ -135,6 +143,11 @@ private:
     Vector<Ref<XRFrameRequestCallback>> m_runningCallbacks;
 
     Ref<WebXRFrame> m_animationFrame;
+
+    // We hold a pointer just to avoid a ref cycle but we must unref it.
+    WebXRReferenceSpace* m_viewerReferenceSpace;
+
+    Vector<PlatformXR::Device::ViewData> m_views;
 
     double m_minimumInlineFOV { 0.0 };
     double m_maximumInlineFOV { piFloat };

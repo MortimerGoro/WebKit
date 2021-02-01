@@ -41,17 +41,24 @@ class WebXRReferenceSpace : public WebXRSpace {
     WTF_MAKE_ISO_ALLOCATED(WebXRReferenceSpace);
 public:
     static Ref<WebXRReferenceSpace> create(Document&, Ref<WebXRSession>&&, XRReferenceSpaceType);
+    static Ref<WebXRReferenceSpace> create(Document&, Ref<WebXRSession>&&, Ref<WebXRRigidTransform>&&, XRReferenceSpaceType);
 
     virtual ~WebXRReferenceSpace();
 
-    RefPtr<WebXRReferenceSpace> getOffsetReferenceSpace(const WebXRRigidTransform&);
+	TransformationMatrix nativeOrigin() const final;
+    virtual RefPtr<WebXRReferenceSpace> getOffsetReferenceSpace(const WebXRRigidTransform&);
+    XRReferenceSpaceType type() const { return m_type; }
 
 protected:
-    WebXRReferenceSpace(Document&, Ref<WebXRSession>&&, XRReferenceSpaceType);
+    WebXRReferenceSpace(Document&, Ref<WebXRSession>&&, Ref<WebXRRigidTransform>&&, XRReferenceSpaceType);
+
+    bool isReferenceSpace() const override final { return true; }
 
     XRReferenceSpaceType m_type;
 };
 
 } // namespace WebCore
+
+SPECIALIZE_TYPE_TRAITS_WEBXRSPACE(WebXRReferenceSpace, isReferenceSpace())
 
 #endif // ENABLE(WEBXR)

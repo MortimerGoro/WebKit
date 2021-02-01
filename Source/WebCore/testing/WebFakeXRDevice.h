@@ -44,20 +44,26 @@ class FakeXRView final : public RefCounted<FakeXRView> {
 public:
     static Ref<FakeXRView> create(XREye eye) { return adoptRef(*new FakeXRView(eye)); }
 
-    RefPtr<WebXRView> view() { return m_view; }
-    void setResolution(FakeXRViewInit::DeviceResolution resolution) { m_resolution = resolution; }
-    void setFieldOfView(FakeXRViewInit::FieldOfViewInit);
+    XREye eye() const { return m_eye; }
+    const RefPtr<WebXRRigidTransform>& offset() const { return m_offset; }
+    const std::array<float, 16>& projection() const { return m_projection; }
+    const Optional<PlatformXR::Device::FrameData::Fov>& fieldOfView() const { return m_fov;}
 
+    void setResolution(FakeXRViewInit::DeviceResolution resolution) { m_resolution = resolution; }
+    void setOffset(RefPtr<WebXRRigidTransform>&& offset) { m_offset = WTFMove(offset); }
+    void setProjection(const Vector<float>&);
+    void setFieldOfView(const FakeXRViewInit::FieldOfViewInit&);
 private:
-    FakeXRView(XREye eye)
+    FakeXRView(XREye eye): m_eye(eye)
     {
-        m_view = WebXRView::create();
-        m_view->setEye(eye);
     }
 
-    RefPtr<WebXRView> m_view;
+
+    XREye m_eye;
     FakeXRViewInit::DeviceResolution m_resolution;
-    FakeXRViewInit::FieldOfViewInit m_fov;
+    RefPtr<WebXRRigidTransform> m_offset;
+    std::array<float, 16> m_projection;
+    Optional<PlatformXR::Device::FrameData::Fov> m_fov;
 };
 
 class SimulatedXRDevice final : public PlatformXR::Device {
@@ -66,17 +72,19 @@ public:
     SimulatedXRDevice();
     ~SimulatedXRDevice();
     void setNativeBoundsGeometry(Vector<FakeXRBoundsPoint> geometry) { m_nativeBoundsGeometry = geometry; }
-    void setViewerOrigin(RefPtr<WebXRRigidTransform>&& origin) { m_viewerOrigin = WTFMove(origin); }
-    void setFloorOrigin(RefPtr<WebXRRigidTransform>&& origin) { m_floorOrigin = WTFMove(origin); }
+    void setViewerOrigin(const RefPtr<WebXRRigidTransform>& origin) { m_viewerOrigin = origin; }
+    void setFloorOrigin(const RefPtr<WebXRRigidTransform>& origin) { m_floorOrigin = origin; }
     void setEmulatedPosition(bool emulated) { m_emulatedPosition = emulated; }
     Vector<Ref<FakeXRView>>& views() { return m_views; }
     void setSupportsShutdownNotification(bool supportsShutdownNotification) { m_supportsShutdownNotification = supportsShutdownNotification; }
     void simulateShutdownCompleted();
+    void scheduleOnNextFrame(Function<void()>&&);
 private:
     void initializeTrackingAndRendering(PlatformXR::SessionMode) final { }
     void shutDownTrackingAndRendering() final;
     bool supportsSessionShutdownNotification() const final { return m_supportsShutdownNotification; }
     void initializeReferenceSpace(PlatformXR::ReferenceSpaceType) final { }
+    Vector<PlatformXR::Device::ViewData> views(XRSessionMode) const final;
     void requestFrame(RequestFrameCallback&&) final;
 
     void stopTimer();
@@ -90,6 +98,7 @@ private:
     bool m_supportsShutdownNotification { false };
     Timer m_frameTimer;
     Vector<RequestFrameCallback> m_callbacks;
+    Vector<Function<void()>> m_pendingUpdates;
 };
 
 class WebFakeXRDevice final : public RefCounted<WebFakeXRDevice> {

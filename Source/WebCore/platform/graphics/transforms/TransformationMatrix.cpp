@@ -600,6 +600,34 @@ TransformationMatrix TransformationMatrix::fromQuaternion(double qx, double qy, 
         0, 0, 0, 1);
 }
 
+
+TransformationMatrix TransformationMatrix::fromProjection(double fovUp, double fovDown, double fovLeft, double fovRight, double near, double far)
+{
+    const double upTan = tan(fovUp);
+    const double downTan = tan(fovDown);
+    const double leftTan = tan(fovLeft);
+    const double rightTan = tan(fovRight);
+    const double xScale = 2.0 / (leftTan + rightTan);
+    const double yScale = 2.0 / (upTan + downTan);
+    const double invDepth = 1.0 / (near - far);
+
+    return TransformationMatrix(xScale, 0.0f, 0.0f, 0.0f,
+        0.0f, yScale, 0.0f, 0.0f,
+        (leftTan - rightTan) * xScale * -0.5, (upTan - downTan) * yScale * 0.5, (near + far) * invDepth, -1.0f,
+        0.0f, 0.0f, (2.0f * far * near) * invDepth, 0.0f);
+}
+
+TransformationMatrix TransformationMatrix::fromProjection(double fovy, double aspect, double near, double far)
+{
+    const float f = 1.0f / tanf(fovy / 2);
+    const float invDepth = 1.0f / (near - far);
+
+    return TransformationMatrix(f / aspect, 0.0f, 0.0f, 0.0f,
+        0.0f, f, 0.0f, 0.0f,
+        0.0f, 0.0f, (far + near) * invDepth, -1.0f,
+        0.0f, 0.0f, (2.0f * far * near) * invDepth, 0.0f);
+}
+
 TransformationMatrix& TransformationMatrix::scale(double s)
 {
     return scaleNonUniform(s, s);

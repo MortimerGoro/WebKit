@@ -28,7 +28,9 @@
 
 #if ENABLE(WEBXR)
 
+#include "DOMPointReadOnly.h"
 #include "Document.h"
+#include "WebXRRigidTransform.h"
 #include "WebXRSession.h"
 #include <wtf/IsoMallocInlines.h>
 
@@ -36,13 +38,22 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(WebXRSpace);
 
-WebXRSpace::WebXRSpace(Document& document, Ref<WebXRSession>&& session)
+WebXRSpace::WebXRSpace(Document& document, Ref<WebXRSession>&& session, Ref<WebXRRigidTransform>&& offset)
     : ContextDestructionObserver(&document)
     , m_session(WTFMove(session))
+    , m_originOffset(WTFMove(offset))
 {
 }
 
 WebXRSpace::~WebXRSpace() = default;
+
+
+TransformationMatrix WebXRSpace::effectiveOrigin() const
+{
+	// https://immersive-web.github.io/webxr/#xrspace-effective-origin
+	// The effective origin can be obtained by multiplying origin offset and the native origin.
+	return m_originOffset->rawTransform() * nativeOrigin();
+}
 
 } // namespace WebCore
 

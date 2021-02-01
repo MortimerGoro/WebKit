@@ -24,6 +24,7 @@
 #include <wtf/CompletionHandler.h>
 #include <wtf/HashMap.h>
 #include <wtf/UniqueRef.h>
+#include <wtf/Variant.h>
 #include <wtf/Vector.h>
 #include <wtf/WeakPtr.h>
 
@@ -41,6 +42,12 @@ enum class ReferenceSpaceType {
     LocalFloor,
     BoundedFloor,
     Unbounded
+};
+
+enum class Eye {
+    None,
+    Left,
+    Right,
 };
 
 #if ENABLE(WEBXR)
@@ -79,23 +86,44 @@ public:
     virtual void initializeReferenceSpace(ReferenceSpaceType) = 0;
 
     struct FrameData {
-        long predictedDisplayTime;
-        struct ViewData {
-            struct {
-                WebCore::FloatPoint3D position;
-                struct {
-                    float x, y, z, w;
-                } orientation;
-            } pose;
-            struct {
-                float rUp, rDown, rLeft, rRight;
-            } fov;
+        struct FloatQuaternion {
+            float x = 0, y = 0, z = 0, w = 1;
         };
-        Vector<ViewData> viewPoses;
+
+        struct Pose {
+            WebCore::FloatPoint3D position;
+            FloatQuaternion orientation;
+        };
+
+        struct Fov {
+            // in radians
+            float up, down, left, right;
+        };
+
+        using Projection = Variant<Fov, std::array<float, 16>, std::nullptr_t>;
+
+        struct View {
+            Pose offset;
+            Projection projection = { nullptr };
+        };
+
+        bool isTrackingValid = false;
+        bool isPositionValid = false;
+        bool isPositionEmulated = false;
+        long predictedDisplayTime;
+        Pose origin;
+        Vector<View> views;
     };
+
+    struct ViewData {
+        bool active;
+        Eye eye;
+    };
+
+    virtual Vector<ViewData> views(SessionMode) const = 0;
+
     using RequestFrameCallback = WTF::Function<void(FrameData)>;
     virtual void requestFrame(RequestFrameCallback&&) = 0;
-
 protected:
     Device() = default;
 

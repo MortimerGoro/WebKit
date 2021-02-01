@@ -28,7 +28,10 @@
 
 #if ENABLE(WEBXR)
 
+#include "Document.h"
 #include "DOMPointReadOnly.h"
+#include "WebXRRigidTransform.h"
+#include "WebXRSession.h"
 #include <wtf/IsoMallocInlines.h>
 
 namespace WebCore {
@@ -37,11 +40,19 @@ WTF_MAKE_ISO_ALLOCATED_IMPL(WebXRBoundedReferenceSpace);
 
 Ref<WebXRBoundedReferenceSpace> WebXRBoundedReferenceSpace::create(Document& document, Ref<WebXRSession>&& session, XRReferenceSpaceType type)
 {
-    return adoptRef(*new WebXRBoundedReferenceSpace(document, WTFMove(session), type));
+	Ref<WebXRRigidTransform> offset = WebXRRigidTransform::create();
+    return adoptRef(*new WebXRBoundedReferenceSpace(document, WTFMove(session), WTFMove(offset), type));
 }
 
-WebXRBoundedReferenceSpace::WebXRBoundedReferenceSpace(Document& document, Ref<WebXRSession>&& session, XRReferenceSpaceType type)
-    : WebXRReferenceSpace(document, WTFMove(session), type)
+
+Ref<WebXRBoundedReferenceSpace> WebXRBoundedReferenceSpace::create(Document& document, Ref<WebXRSession>&& session, Ref<WebXRRigidTransform>&& offset, XRReferenceSpaceType type)
+{
+    return adoptRef(*new WebXRBoundedReferenceSpace(document, WTFMove(session), WTFMove(offset), type));
+}
+
+
+WebXRBoundedReferenceSpace::WebXRBoundedReferenceSpace(Document& document, Ref<WebXRSession>&& session, Ref<WebXRRigidTransform>&& offset, XRReferenceSpaceType type)
+    : WebXRReferenceSpace(document, WTFMove(session), WTFMove(offset), type)
 {
 }
 
@@ -49,8 +60,26 @@ WebXRBoundedReferenceSpace::~WebXRBoundedReferenceSpace() = default;
 
 const Vector<Ref<DOMPointReadOnly>>& WebXRBoundedReferenceSpace::boundsGeometry() const
 {
+	// FIXME: get data from device
     return m_boundsGeometry;
 }
+
+
+RefPtr<WebXRReferenceSpace> WebXRBoundedReferenceSpace::getOffsetReferenceSpace(const WebXRRigidTransform& offsetTransform)
+{
+    if (!scriptExecutionContext())
+        return nullptr;
+    ASSERT(is<Document>(scriptExecutionContext()));
+
+    // https://immersive-web.github.io/webxr/#dom-xrreferencespace-getoffsetreferencespace
+    // Set offsetSpace’s origin offset to the result of multiplying base’s origin offset by originOffset in the relevant realm of base.
+    Ref<WebXRRigidTransform> offset = WebXRRigidTransform::create(m_originOffset->rawTransform() * offsetTransform.rawTransform());
+
+    // FIXME: set offsetSpace’s boundsGeometry to base’s boundsGeometry, with each point multiplied by the inverse of originOffset.
+
+    return create(downcast<Document>(*scriptExecutionContext()), m_session.copyRef(), WTFMove(offset), m_type);
+}
+
 
 } // namespace WebCore
 
