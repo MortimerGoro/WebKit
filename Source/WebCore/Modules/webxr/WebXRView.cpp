@@ -36,24 +36,24 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(WebXRView);
 
-Ref<WebXRView> WebXRView::create(const PlatformXR::Device::ViewData& viewData, DOMHighResTimeStamp time, Ref<WebXRSession>&& session)
+Ref<WebXRView> WebXRView::create(XREye eye, Ref<WebXRRigidTransform>&& transform, Ref<WebXRSession>&& session)
 {
-    return adoptRef(*new WebXRView(viewData, time, WTFMove(session)));
+    return adoptRef(*new WebXRView(eye, WTFMove(transform), WTFMove(session)));
 }
 
-WebXRView::WebXRView(const PlatformXR::Device::ViewData& viewData, DOMHighResTimeStamp time, Ref<WebXRSession>&& session)
-    : m_viewData(viewData)
-    , m_time(time)
+WebXRView::WebXRView(XREye eye, Ref<WebXRRigidTransform>&& transform, Ref<WebXRSession>&& session)
+    : m_eye(eye)
+    , m_transform(WTFMove(transform))
     , m_session(WTFMove(session))
 {
 }
 
-WebXRView::~WebXRView() = default;
-
-void WebXRView::setProjectionMatrix(const std::array<float, 16>& matrix)
+void WebXRView::setProjectionMatrix(const std::array<float, 16>& projection)
 {
-    m_projectionMatrix = Float32Array::create(matrix.data(), matrix.size());
+	m_projection = Float32Array::create(projection.data(), projection.size());
 }
+
+WebXRView::~WebXRView() = default;
 
 } // namespace WebCore
 

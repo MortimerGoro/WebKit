@@ -72,10 +72,11 @@ public:
     SimulatedXRDevice();
     ~SimulatedXRDevice();
     void setNativeBoundsGeometry(Vector<FakeXRBoundsPoint> geometry) { m_nativeBoundsGeometry = geometry; }
-    void setViewerOrigin(RefPtr<WebXRRigidTransform>&& origin) { m_viewerOrigin = WTFMove(origin); }
-    void setFloorOrigin(RefPtr<WebXRRigidTransform>&& origin) { m_floorOrigin = WTFMove(origin); }
+    void setViewerOrigin(const RefPtr<WebXRRigidTransform>& origin) { m_viewerOrigin = origin; }
+    void setFloorOrigin(const RefPtr<WebXRRigidTransform>& origin) { m_floorOrigin = origin; }
     void setEmulatedPosition(bool emulated) { m_emulatedPosition = emulated; }
     Vector<Ref<FakeXRView>>& views() { return m_views; }
+    void scheduleOnNextFrame(Function<void()>&&);
 private:
     void initializeTrackingAndRendering(PlatformXR::SessionMode) final;
     void shutDownTrackingAndRendering() final;
@@ -93,6 +94,7 @@ private:
 
     Timer m_frameTimer;
     Vector<RequestFrameCallback> m_callbacks;
+    Vector<Function<void()>> m_pendingUpdates;
 };
 
 class WebFakeXRDevice final : public RefCounted<WebFakeXRDevice> {

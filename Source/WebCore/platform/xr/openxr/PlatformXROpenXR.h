@@ -52,12 +52,13 @@ private:
     void collectConfigurationViews();
 
     ListOfEnabledFeatures enumerateReferenceSpaces(XrSession&) const;
-    void initializeReferenceSpace(ReferenceSpaceType) final;
+    XrSpace createReferenceSpace(XrReferenceSpaceType);
 
     WebCore::IntSize recommendedResolution(SessionMode) final;
 
     void initializeTrackingAndRendering(SessionMode) final;
     void shutDownTrackingAndRendering() final;
+    void initializeReferenceSpace(PlatformXR::ReferenceSpaceType) final { }
 
     void pollEvents();
     XrResult beginSession();
@@ -80,9 +81,8 @@ private:
     WorkQueue& m_queue;
 
     XrViewConfigurationType m_currentViewConfigurationType;
-
-    using ReferenceSpacesMap = HashMap<ReferenceSpaceType, XrSpace, IntHash<ReferenceSpaceType>, WTF::StrongEnumHashTraits<ReferenceSpaceType>>;
-    ReferenceSpacesMap m_referenceSpaces;
+    XrSpace m_localSpace;
+    XrSpace m_viewSpace;
 };
 
 } // namespace PlatformXR

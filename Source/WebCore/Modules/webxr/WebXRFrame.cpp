@@ -44,14 +44,6 @@ static TransformationMatrix matrixFromPose(const PlatformXR::Device::FrameData::
     return matrix;
 }
 
-static void printMatrix(const TransformationMatrix& m, const char * msg) {
-    fprintf(stderr, "%s \n", msg);
-    fprintf(stderr, "%f %f %f %f \n", m.m11(), m.m12(), m.m13(), m.m14());
-    fprintf(stderr, "%f %f %f %f \n", m.m21(), m.m22(), m.m23(), m.m24());
-    fprintf(stderr, "%f %f %f %f \n", m.m31(), m.m32(), m.m33(), m.m34());
-    fprintf(stderr, "%f %f %f %f \n", m.m41(), m.m42(), m.m43(), m.m44());
-}
-
 WTF_MAKE_ISO_ALLOCATED_IMPL(WebXRFrame);
 
 Ref<WebXRFrame> WebXRFrame::create(WebXRSession& session, bool isAnimationFrame)
@@ -137,18 +129,22 @@ ExceptionOr<Optional<WebXRFrame::PopulatedPose>> WebXRFrame::populatePose(const 
 
     // 7. Let transform be pose’s transform.
     // 8. Query the XR device's tracking system for space’s pose relative to baseSpace at the frame’s time.
+
+    if (!m_data.isTrackingValid) {
+        // FIXME: check if space’s pose relative to baseSpace has been determined in the past.
+        // Anyway this emulation is usually provided by the system in the pose (e.g. OpenXR)
+        return { WTF::nullopt };
+    }
+
     TransformationMatrix baseTransform = baseSpace.effectiveOrigin();
-    printMatrix(baseTransform, "baseTransform::effectiveOrigin");
     if (!baseTransform.isInvertible())
         return { WTF::nullopt };
 
-    printMatrix(space.effectiveOrigin(), "space::effectiveOrigin");
     TransformationMatrix transform =  *baseTransform.inverse() * space.effectiveOrigin();
-    printMatrix(transform, "populated");
-    const bool emulatedPosition = false;
+    const bool emulatedPosition = m_data.isPositionEmulated || !m_data.isPositionValid;
 
     if (limit) {
-        // TODO: apply pose limits
+        // TODO: apply pose limits logic
     }
 
     return { PopulatedPose { transform, emulatedPosition } };
@@ -189,13 +185,34 @@ ExceptionOr<RefPtr<WebXRViewerPose>> WebXRFrame::getViewerPose(const WebXRRefere
         // 8.3 Initialize xrview’s eye to view’s eye.
         // 8.4 Initialize xrview’s frame time to frame’s time.
         // 8.5 Initialize xrview’s session to session.
-        auto xrView = WebXRView::create(view, m_time, makeRef(m_session));
-
-        //  8.6. Let offset be an new XRRigidTransform object equal to the view offset of view in the relevant realm of session.
-        //  8.7. Set xrview’s transform property to the result of multiplying the XRViewerPose's transform by the offset transform in the relevant realm of session
+        // 8.6. Let offset be an new XRRigidTransform object equal to the view offset of view in the relevant realm of session.
+        // 8.7. Set xrview’s transform property to the result of multiplying the XRViewerPose's transform by the offset transform in the relevant realm of session
         TransformationMatrix offset = matrixFromPose(m_data.views[index].offset);
-        xrView->setTransform(WebXRRigidTransform::create(pose->transform().rawTransform() * offset));
-        xrView->setProjectionMatrix(m_data.views[index].projection);
+        auto transform = WebXRRigidTransform::create(pose->transform().rawTransform() * offset);
+
+        auto xrView = WebXRView::create(view.eye, WTFMove(transform), makeRef(m_session));
+
+        // Set projection matrix for each view
+        std::array<float, 16> projection = switchOn(m_data.views[index].projection, [&](const PlatformXR::Device::FrameData::Fov& fov) {
+            const double near = m_session.renderState().depthNear();
+            const double far = m_session.renderState().depthFar();
+            return TransformationMatrix::fromProjection(fov.up, fov.down, fov.left, fov.right, near, far).toColumnMajorFloatArray();
+        }, [&](const std::array<float, 16>& matrix) {
+            return matrix;
+        }, [&](std::nullptr_t&) {
+            // Use aspect projection for inline sessions
+            const double fov =  m_session.renderState().inlineVerticalFieldOfView().valueOr(piOverTwoDouble);
+            float aspect = 1;
+            auto layer = m_session.renderState().baseLayer();
+            if (layer) {
+                aspect = (double) layer->framebufferWidth() / (double) layer->framebufferHeight();
+            }
+            const double near = m_session.renderState().depthNear();
+            const double far = m_session.renderState().depthFar();
+            return TransformationMatrix::fromProjection(fov, aspect, near, far).toColumnMajorFloatArray();
+        });
+
+        xrView->setProjectionMatrix(projection);
 
         //  8.8. Append xrview to xrviews
         xrViews.append(WTFMove(xrView));

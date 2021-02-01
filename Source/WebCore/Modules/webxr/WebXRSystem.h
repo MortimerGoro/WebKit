@@ -111,7 +111,7 @@ private:
     private:
         void initializeTrackingAndRendering(PlatformXR::SessionMode) final { }
         void shutDownTrackingAndRendering() final { }
-        void initializeReferenceSpace(PlatformXR::ReferenceSpaceType) final { };
+        void initializeReferenceSpace(PlatformXR::ReferenceSpaceType) final { }
 
         void requestFrame(PlatformXR::Device::RequestFrameCallback&&) final;
         Vector<Device::ViewData> views(XRSessionMode) const final;

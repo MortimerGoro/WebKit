@@ -81,7 +81,6 @@ void WebXRSession::initializeViewerReferenceSpace(Document& document)
     // https://immersive-web.github.io/webxr/#ref-for-dom-xrreferencespacetype-viewer%E2%91%A2
     // Every session MUST support viewer XRReferenceSpaces.
     m_viewerReferenceSpace = &WebXRReferenceSpace::create(document, makeRef(*this), XRReferenceSpaceType::Viewer).leakRef();
-
     m_device->initializeReferenceSpace(XRReferenceSpaceType::Viewer);
 }
 

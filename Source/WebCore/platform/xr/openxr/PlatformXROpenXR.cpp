@@ -239,24 +239,6 @@ void Instance::enumerateImmersiveXRDevices(CompletionHandler<void(const DeviceLi
     });
 }
 
-static XrReferenceSpaceType toXrReferenceSpaceType(ReferenceSpaceType type)
-{
-    switch (type) {
-    case ReferenceSpaceType::Viewer:
-        return XR_REFERENCE_SPACE_TYPE_VIEW;
-    case ReferenceSpaceType::Local:
-        return XR_REFERENCE_SPACE_TYPE_LOCAL;
-    case ReferenceSpaceType::LocalFloor:
-    case ReferenceSpaceType::BoundedFloor:
-        return XR_REFERENCE_SPACE_TYPE_STAGE;
-    case ReferenceSpaceType::Unbounded:
-        return XR_REFERENCE_SPACE_TYPE_UNBOUNDED_MSFT;
-    default:
-        ASSERT_NOT_REACHED("Unrecognized reference space type %d", type);
-        return XR_REFERENCE_SPACE_TYPE_VIEW;
-    };
-}
-
 OpenXRDevice::OpenXRDevice(XrSystemId id, XrInstance instance, WorkQueue& queue, CompletionHandler<void()>&& callback)
     : m_systemId(id)
     , m_instance(instance)
@@ -325,30 +307,26 @@ Device::ListOfEnabledFeatures OpenXRDevice::enumerateReferenceSpaces(XrSession& 
     return enabledFeatures;
 }
 
-void OpenXRDevice::initializeReferenceSpace(ReferenceSpaceType type)
+XrSpace OpenXRDevice::createReferenceSpace(XrReferenceSpaceType type)
 {
-    m_queue.dispatch([this, type]() {
-        ASSERT(m_session != XR_NULL_HANDLE);
-        ASSERT(m_instance != XR_NULL_HANDLE);
-        if (m_referenceSpaces.contains(type))
-            return;
+    ASSERT(&RunLoop::current() == &m_queue.runLoop());
+    ASSERT(m_session != XR_NULL_HANDLE);
+    ASSERT(m_instance != XR_NULL_HANDLE);
 
-        XrPosef identityPose = {
-            .orientation = { .x = 0, .y = 0, .z = 0, .w = 1.0 },
-            .position = { .x = 0, .y = 0, .z = 0 }
-        };
+    XrPosef identityPose = {
+        .orientation = { .x = 0, .y = 0, .z = 0, .w = 1.0 },
+        .position = { .x = 0, .y = 0, .z = 0 }
+    };
 
-        auto spaceCreateInfo = createStructure<XrReferenceSpaceCreateInfo, XR_TYPE_REFERENCE_SPACE_CREATE_INFO>();
-        spaceCreateInfo.referenceSpaceType = toXrReferenceSpaceType(type);
-        spaceCreateInfo.poseInReferenceSpace = identityPose;
+    auto spaceCreateInfo = createStructure<XrReferenceSpaceCreateInfo, XR_TYPE_REFERENCE_SPACE_CREATE_INFO>();
+    spaceCreateInfo.referenceSpaceType = type;
+    spaceCreateInfo.poseInReferenceSpace = identityPose;
 
-        XrSpace space;
-        auto result = xrCreateReferenceSpace(m_session, &spaceCreateInfo, &space);
-        RETURN_IF_FAILED(result, "xrCreateReferenceSpace", m_instance);
+    XrSpace space;
+    auto result = xrCreateReferenceSpace(m_session, &spaceCreateInfo, &space);
+    RETURN_IF_FAILED(result, "xrCreateReferenceSpace", m_instance, XR_NULL_HANDLE);
 
-        m_referenceSpaces.add(type, space);
-        LOG(XR, "Created reference space of type %d", (int)type);
-    });
+    return space;
 }
 
 void OpenXRDevice::collectSupportedSessionModes()
@@ -456,6 +434,9 @@ void OpenXRDevice::initializeTrackingAndRendering(SessionMode mode)
         sessionCreateInfo.systemId = m_systemId;
         auto result = xrCreateSession(m_instance, &sessionCreateInfo, &m_session);
         RETURN_IF_FAILED(result, "xrEnumerateInstanceExtensionProperties", m_instance);
+
+        m_localSpace = createReferenceSpace(XR_REFERENCE_SPACE_TYPE_LOCAL);
+        m_viewSpace = createReferenceSpace(XR_REFERENCE_SPACE_TYPE_VIEW);
     });
 }
 
@@ -541,12 +522,19 @@ XrResult OpenXRDevice::beginSession()
     return result;
 }
 
-Device::FrameData::View xrViewToPoseData(XrView view)
+
+static Device::FrameData::Pose XrPosefToPose(XrPosef pose) {
+    Device::FrameData::Pose result;
+    result.orientation = { pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w };
+    result.position = { pose.position.x, pose.position.y, pose.position.z };
+    return result;
+}
+
+static Device::FrameData::View xrViewToPoseData(XrView view)
 {
     Device::FrameData::View pose;
     pose.projection = Device::FrameData::Fov { view.fov.angleUp, view.fov.angleDown, view.fov.angleLeft, view.fov.angleRight };
-    pose.offset.orientation = { view.pose.orientation.x, view.pose.orientation.y, view.pose.orientation.z, view.pose.orientation.w };
-    pose.offset.position = { view.pose.position.x, view.pose.position.y, view.pose.position.z };
+    pose.offset = XrPosefToPose(view.pose);
     return pose;
 }
 
@@ -579,13 +567,22 @@ void OpenXRDevice::requestFrame(RequestFrameCallback&& callback)
         frameData.predictedDisplayTime = frameState.predictedDisplayTime;
 
         if (sessionIsActive(m_sessionState)) {
+            // Query head location
+            auto location = createStructure<XrSpaceLocation, XR_TYPE_SPACE_LOCATION>();
+            xrLocateSpace(m_viewSpace, m_localSpace, frameState.predictedDisplayTime, &location);
+            frameData.isTrackingValid = (location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT) != 0;
+            frameData.isPositionValid = (location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0;
+            frameData.isPositionEmulated = (location.locationFlags & XR_SPACE_LOCATION_POSITION_TRACKED_BIT) == 0;
+
+            if (frameData.isTrackingValid)
+                frameData.origin = XrPosefToPose(location.pose);
+            
             ASSERT(m_configurationViews.contains(m_currentViewConfigurationType));
             const auto& configurationView = m_configurationViews.get(m_currentViewConfigurationType);
 
             auto viewLocateInfo = createStructure<XrViewLocateInfo, XR_TYPE_VIEW_LOCATE_INFO>();
             viewLocateInfo.displayTime = predictedTime;
-            // FIXME: use the current reference space.
-            // viewLocateInfo.space = m_localSpace;
+            viewLocateInfo.space = m_localSpace;
 
             uint32_t viewCount = configurationView.size();
             Vector<XrView> views(viewCount, [] {

@@ -86,13 +86,16 @@ public:
             float up, down, left, right;
         };
 
-        using Projection = Variant<Fov, std::array<float, 16>>;
+        using Projection = Variant<Fov, std::array<float, 16>, std::nullptr_t>;
 
         struct View {
             Pose offset;
-            Projection projection;
+            Projection projection = { nullptr };
         };
 
+        bool isTrackingValid = false;
+        bool isPositionValid = false;
+        bool isPositionEmulated = false;
         long predictedDisplayTime;
         Pose origin;
         Vector<View> views;

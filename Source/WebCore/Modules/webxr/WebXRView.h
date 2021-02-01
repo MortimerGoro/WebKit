@@ -44,24 +44,22 @@ class WebXRRigidTransform;
 class WebXRView : public RefCounted<WebXRView> {
     WTF_MAKE_ISO_ALLOCATED_EXPORT(WebXRView, WEBCORE_EXPORT);
 public:
-    WEBCORE_EXPORT static Ref<WebXRView> create(const PlatformXR::Device::ViewData&, DOMHighResTimeStamp, Ref<WebXRSession>&&);
+    WEBCORE_EXPORT static Ref<WebXRView> create(XREye eye, Ref<WebXRRigidTransform>&&, Ref<WebXRSession>&&);
     WEBCORE_EXPORT ~WebXRView();
 
-    XREye eye() const { return m_viewData.eye; }
-    const Float32Array& projectionMatrix() const { return *m_projectionMatrix; }
-    const WebXRRigidTransform& transform() const { return *m_transform; }
+    XREye eye() const { return m_eye; }
+    const Float32Array& projectionMatrix() const { return *m_projection; }
+    const WebXRRigidTransform& transform() const { return m_transform.get(); }
 
     WEBCORE_EXPORT void setProjectionMatrix(const std::array<float, 16>&);
-    void setTransform(RefPtr<WebXRRigidTransform>&& viewOffset) { m_transform = WTFMove(viewOffset); }
 
 private:
-    WebXRView(const PlatformXR::Device::ViewData&, DOMHighResTimeStamp, Ref<WebXRSession>&&);
+    WebXRView(XREye eye, Ref<WebXRRigidTransform>&&, Ref<WebXRSession>&&);
 
-    PlatformXR::Device::ViewData m_viewData;
-    DOMHighResTimeStamp m_time;
+    XREye m_eye;
+    Ref<WebXRRigidTransform> m_transform;
     Ref<WebXRSession> m_session;
-    RefPtr<Float32Array> m_projectionMatrix;
-    RefPtr<WebXRRigidTransform> m_transform;
+    RefPtr<Float32Array> m_projection;
 };
 
 } // namespace WebCore
