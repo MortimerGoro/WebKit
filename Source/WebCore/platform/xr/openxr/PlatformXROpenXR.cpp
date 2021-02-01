@@ -540,7 +540,7 @@ void OpenXRDevice::requestFrame(RequestFrameCallback&& callback)
 {
     m_queue.dispatch([this, callback = WTFMove(callback)]() mutable {
         pollEvents();
-        if (!isSessionReady(m_sessionState)) {
+        if (!sessionIsRunning(m_sessionState)) {
             callOnMainThread([callback = WTFMove(callback)]() mutable {
                 // Device not ready or stopping. Report frameData with invalid tracking.
                 callback({ });
@@ -561,7 +561,7 @@ void OpenXRDevice::requestFrame(RequestFrameCallback&& callback)
         Device::FrameData frameData;
         frameData.predictedDisplayTime = frameState.predictedDisplayTime;
 
-        if (isSessionActive(m_sessionState)) {
+        if (sessionIsActive(m_sessionState)) {
             ASSERT(m_configurationViews.contains(m_currentViewConfigurationType));
             const auto& configurationView = m_configurationViews.get(m_currentViewConfigurationType);
 
