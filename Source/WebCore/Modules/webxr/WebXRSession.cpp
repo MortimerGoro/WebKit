@@ -28,11 +28,13 @@
 
 #if ENABLE(WEBXR)
 
+#include "Document.h"
 #include "EventNames.h"
 #include "JSWebXRReferenceSpace.h"
 #include "WebXRBoundedReferenceSpace.h"
 #include "WebXRFrame.h"
 #include "WebXRSystem.h"
+#include "WebXRView.h"
 #include "XRFrameRequestCallback.h"
 #include "XRRenderStateInit.h"
 #include "XRSessionEvent.h"
@@ -55,7 +57,9 @@ WebXRSession::WebXRSession(Document& document, WebXRSystem& system, XRSessionMod
     , m_mode(mode)
     , m_device(makeWeakPtr(device))
     , m_activeRenderState(WebXRRenderState::create(mode))
+    , m_viewerReferenceSpace(WebXRReferenceSpace::create(document, makeWeakPtr(*this), XRReferenceSpaceType::Viewer))
     , m_timeOrigin(MonotonicTime::now())
+    , m_views(device.views(mode))
 {
     m_device->initializeTrackingAndRendering(mode);
     m_device->setTrackingAndRenderingClient(makeWeakPtr(*this));
@@ -63,6 +67,7 @@ WebXRSession::WebXRSession(Document& document, WebXRSystem& system, XRSessionMod
     // https://immersive-web.github.io/webxr/#ref-for-dom-xrreferencespacetype-viewer%E2%91%A2
     // Every session MUST support viewer XRReferenceSpaces.
     m_device->initializeReferenceSpace(XRReferenceSpaceType::Viewer);
+    
 
     suspendIfNeeded();
 }
@@ -230,9 +235,9 @@ void WebXRSession::requestReferenceSpace(XRReferenceSpaceType type, RequestRefer
             // https://immersive-web.github.io/webxr/#create-a-reference-space
             RefPtr<WebXRReferenceSpace> referenceSpace;
             if (type == XRReferenceSpaceType::BoundedFloor)
-                referenceSpace = WebXRBoundedReferenceSpace::create(document, makeRef(*this), type);
+                referenceSpace = WebXRBoundedReferenceSpace::create(document, makeWeakPtr(*this), type);
             else
-                referenceSpace = WebXRReferenceSpace::create(document, makeRef(*this), type);
+                referenceSpace = WebXRReferenceSpace::create(document, makeWeakPtr(*this), type);
 
             // 2.5. Resolve promise with referenceSpace.
             promise.resolve(referenceSpace.releaseNonNull());
@@ -478,13 +483,15 @@ void WebXRSession::onFrame(PlatformXR::Device::FrameData&& frameData)
         return;
 
     // Queue a task to perform the following steps.
-    queueTaskKeepingObjectAlive(*this, TaskSource::WebXR, [this, frameData = WTFMove(frameData)]() {
+    queueTaskKeepingObjectAlive(*this, TaskSource::WebXR, [this, frameData = WTFMove(frameData)]() mutable {
         if (m_ended)
             return;
+
+        m_frameData = frameData;
         //  1.Let now be the current high resolution time.
         auto now = (MonotonicTime::now() - m_timeOrigin).milliseconds();
 
-        auto frame = WebXRFrame::create(makeRef(*this));
+        auto frame = WebXRFrame::create(makeRef(*this), true /*isAnimationFrame*/);
         //  2.Let frame be session’s animation frame.
         //  3.Set frame’s time to frameTime.
         frame->setTime(static_cast<DOMHighResTimeStamp>(frameData.predictedDisplayTime));
@@ -508,7 +515,7 @@ void WebXRSession::onFrame(PlatformXR::Device::FrameData&& frameData)
             frame->setActive(true);
 
             // 6.4.Apply frame updates for frame.
-            // FIXME: implement.
+            frame->setFrameData(WTFMove(frameData));
 
             // 6.5.For each entry in session’s list of currently running animation frame callbacks, in order:
             for (auto& callback : callbacks) {
@@ -535,6 +542,31 @@ void WebXRSession::onFrame(PlatformXR::Device::FrameData&& frameData)
         }
 
     });
+}
+
+// https://immersive-web.github.io/webxr/#poses-may-be-reported
+bool WebXRSession::posesCanBeReported() const
+{
+    // There are several requirements in the specs but since we already have a session everything gets
+    // 1. Let document be the document that owns session.
+    // 2. If the request does not originate from document, return false.
+    auto* document = downcast<Document>(scriptExecutionContext());
+    if (!document)
+        return false;
+
+    // 3. If document is not active and focused, return false.
+    if (!document->hasFocus())
+        return false;
+
+    // 4. If session's visibilityState in not "visible", return false.
+    if (m_visibilityState != XRVisibilityState::Visible)
+        return false;
+
+    // 5. Determine if the pose data can be returned as follows:
+    // The procedure in the specs tries to ensure that we apply measures to
+    // prevent fingerprintint in pose data and return false in case we don't.
+    // We're going to apply them so let's just return true.
+    return true;
 }
 
 } // namespace WebCore

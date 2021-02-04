@@ -50,6 +50,7 @@ namespace WebCore {
 class XRFrameRequestCallback;
 class WebXRReferenceSpace;
 class WebXRSystem;
+class WebXRView;
 struct XRRenderStateInit;
 
 class WebXRSession final : public RefCounted<WebXRSession>, public EventTargetWithInlineData, public ActiveDOMObject, public PlatformXR::TrackingAndRenderingClient {
@@ -90,6 +91,11 @@ public:
 
     XRSessionMode mode() const { return m_mode; }
 
+    const WebXRReferenceSpace& viewerReferenceSpace() const { return m_viewerReferenceSpace.get(); }
+    const Vector<PlatformXR::Device::ViewData>& views() const { return m_views; }
+    const PlatformXR::Device::FrameData& frameData() const { return m_frameData; }
+    bool posesCanBeReported() const;
+
 private:
     WebXRSession(Document&, WebXRSystem&, XRSessionMode, PlatformXR::Device&);
 
@@ -128,10 +134,14 @@ private:
     WeakPtr<PlatformXR::Device> m_device;
     RefPtr<WebXRRenderState> m_activeRenderState;
     RefPtr<WebXRRenderState> m_pendingRenderState;
+    Ref<WebXRReferenceSpace> m_viewerReferenceSpace;
     MonotonicTime m_timeOrigin;
 
     unsigned m_nextCallbackId { 1 };
     Vector<Ref<XRFrameRequestCallback>> m_callbacks;
+
+    Vector<PlatformXR::Device::ViewData> m_views;
+    PlatformXR::Device::FrameData m_frameData { };
 
     double m_minimumInlineFOV { 0.0 };
     double m_maximumInlineFOV { piFloat };

@@ -28,6 +28,7 @@
 #if ENABLE(WEBXR)
 
 #include "WebXRRigidTransform.h"
+#include "WebXRSession.h"
 #include "XREye.h"
 #include <JavaScriptCore/Float32Array.h>
 #include <wtf/IsoMalloc.h>
@@ -37,28 +38,28 @@
 
 namespace WebCore {
 
+class WebXRFrame;
 class WebXRRigidTransform;
 
 class WebXRView : public RefCounted<WebXRView> {
     WTF_MAKE_ISO_ALLOCATED_EXPORT(WebXRView, WEBCORE_EXPORT);
 public:
-    WEBCORE_EXPORT static Ref<WebXRView> create();
+    WEBCORE_EXPORT static Ref<WebXRView> create(XREye eye, Ref<WebXRRigidTransform>&&, Ref<WebXRSession>&&);
     WEBCORE_EXPORT ~WebXRView();
 
     XREye eye() const { return m_eye; }
-    const Float32Array& projectionMatrix() const { return *m_projectionMatrix; }
-    const WebXRRigidTransform& transform() const { return *m_transform; }
+    const Float32Array& projectionMatrix() const { return *m_projection; }
+    const WebXRRigidTransform& transform() const { return m_transform.get(); }
 
-    void setEye(XREye eye) { m_eye = eye; }
-    WEBCORE_EXPORT void setProjectionMatrix(const Vector<float>&);
-    void setTransform(RefPtr<WebXRRigidTransform>&& viewOffset) { m_transform = WTFMove(viewOffset); }
+    WEBCORE_EXPORT void setProjectionMatrix(const std::array<float, 16>&);
 
 private:
-    WebXRView();
+    WebXRView(XREye eye, Ref<WebXRRigidTransform>&&, Ref<WebXRSession>&&);
 
     XREye m_eye;
-    RefPtr<Float32Array> m_projectionMatrix;
-    RefPtr<WebXRRigidTransform> m_transform;
+    Ref<WebXRRigidTransform> m_transform;
+    Ref<WebXRSession> m_session;
+    RefPtr<Float32Array> m_projection;
 };
 
 } // namespace WebCore

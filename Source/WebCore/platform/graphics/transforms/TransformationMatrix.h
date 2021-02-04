@@ -121,6 +121,10 @@ public:
 
     static TransformationMatrix fromQuaternion(double qx, double qy, double qz, double qw);
 
+    // Field of view in radians
+    static TransformationMatrix fromProjection(double fovUp, double fovDown, double fovLeft, double fovRight, double near, double far);
+    static TransformationMatrix fromProjection(double fovy, double aspect, double near, double far);
+
     static const TransformationMatrix identity;
 
     void setMatrix(double a, double b, double c, double d, double e, double f)

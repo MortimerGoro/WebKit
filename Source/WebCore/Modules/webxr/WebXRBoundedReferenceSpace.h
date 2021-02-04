@@ -25,12 +25,12 @@
 
 #pragma once
 
+#if ENABLE(WEBXR)
+
 #include "WebXRReferenceSpace.h"
 #include <wtf/IsoMalloc.h>
 #include <wtf/Ref.h>
 #include <wtf/Vector.h>
-
-#if ENABLE(WEBXR)
 
 namespace WebCore {
 
@@ -39,18 +39,25 @@ class DOMPointReadOnly;
 class WebXRBoundedReferenceSpace : public WebXRReferenceSpace {
     WTF_MAKE_ISO_ALLOCATED(WebXRBoundedReferenceSpace);
 public:
-    static Ref<WebXRBoundedReferenceSpace> create(Document&, Ref<WebXRSession>&&, XRReferenceSpaceType);
+    static Ref<WebXRBoundedReferenceSpace> create(Document&, WeakPtr<WebXRSession>&&, XRReferenceSpaceType);
+    static Ref<WebXRBoundedReferenceSpace> create(Document&, WeakPtr<WebXRSession>&&, Ref<WebXRRigidTransform>&&, XRReferenceSpaceType);
 
     virtual ~WebXRBoundedReferenceSpace();
 
+	TransformationMatrix nativeOrigin() const final;
     const Vector<Ref<DOMPointReadOnly>>& boundsGeometry() const;
+    RefPtr<WebXRReferenceSpace> getOffsetReferenceSpace(const WebXRRigidTransform&) final;
 
 private:
-    WebXRBoundedReferenceSpace(Document&, Ref<WebXRSession>&&, XRReferenceSpaceType);
+    WebXRBoundedReferenceSpace(Document&, WeakPtr<WebXRSession>&&, Ref<WebXRRigidTransform>&&, XRReferenceSpaceType);
+
+    bool isBoundedReferenceSpace() const final { return true; }
 
     Vector<Ref<DOMPointReadOnly>> m_boundsGeometry;
 };
 
 } // namespace WebCore
+
+SPECIALIZE_TYPE_TRAITS_WEBXRSPACE(WebXRBoundedReferenceSpace, isBoundedReferenceSpace())
 
 #endif // ENABLE(WEBXR)

@@ -28,6 +28,8 @@
 #if ENABLE(WEBXR)
 
 #include "DOMHighResTimeStamp.h"
+#include "ExceptionOr.h"
+#include "PlatformXR.h"
 #include <wtf/IsoMalloc.h>
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
@@ -44,23 +46,33 @@ class WebXRViewerPose;
 class WebXRFrame : public RefCounted<WebXRFrame> {
     WTF_MAKE_ISO_ALLOCATED(WebXRFrame);
 public:
-    static Ref<WebXRFrame> create(Ref<WebXRSession>&&);
+    static Ref<WebXRFrame> create(Ref<WebXRSession>&&, bool isAnimationFrame = false);
     ~WebXRFrame();
 
     const WebXRSession& session() const { return m_session.get(); }
 
-    RefPtr<WebXRViewerPose> getViewerPose(const WebXRReferenceSpace&);
-    RefPtr<WebXRPose> getPose(const WebXRSpace&, const WebXRSpace&);
+    bool mustPosesBeLimited(const WebXRSpace&, const WebXRSpace& baseSpace);
+    ExceptionOr<RefPtr<WebXRViewerPose>> getViewerPose(const WebXRReferenceSpace&);
+    ExceptionOr<RefPtr<WebXRPose>> getPose(const WebXRSpace&, const WebXRSpace&);
 
     void setTime(DOMHighResTimeStamp time) { m_time = time; }
+    void setFrameData(PlatformXR::Device::FrameData&& data) { m_data = WTFMove(data); }
+    const PlatformXR::Device::FrameData& getFrameData() const { return m_data; }
+
     void setActive(bool active) { m_active = active; }
     bool isActive() const { return m_active; }
 
 private:
-    explicit WebXRFrame(Ref<WebXRSession>&&);
+    explicit WebXRFrame(Ref<WebXRSession>&&, bool);
+    WebXRFrame(WebXRSession&, bool isAnimationFrame);
+
+    struct PopulatedPose;
+    ExceptionOr<Optional<PopulatedPose>> populatePose(const WebXRSpace& space, const WebXRSpace& baseSpace);
 
     bool m_active { false };
-    DOMHighResTimeStamp m_time;
+    bool m_IsAnimationFrame { false };
+    DOMHighResTimeStamp m_time { 0 };
+    PlatformXR::Device::FrameData m_data;
     Ref<WebXRSession> m_session;
 };
 
