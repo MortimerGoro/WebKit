@@ -101,9 +101,11 @@ private:
 #endif
 
     static bool getEGLConfig(EGLDisplay, EGLConfig*, EGLSurfaceType);
-
+public:
     EGLContext m_context { nullptr };
     EGLSurface m_surface { nullptr };
+    EGLConfig m_config { nullptr };
+private:
     EGLSurfaceType m_type;
 #if PLATFORM(X11)
     XUniquePixmap m_pixmap;

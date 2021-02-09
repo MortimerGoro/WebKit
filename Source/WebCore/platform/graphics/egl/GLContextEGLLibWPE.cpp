@@ -89,7 +89,10 @@ std::unique_ptr<GLContextEGL> GLContextEGL::createWPEContext(PlatformDisplay& pl
         return nullptr;
     }
 
-    return std::unique_ptr<GLContextEGL>(new GLContextEGL(platformDisplay, context, surface, target));
+    auto ret = std::unique_ptr<GLContextEGL>(new GLContextEGL(platformDisplay, context, surface, target));
+    ret->m_config = config;
+    fprintf(stderr, "makelele GLContextEGL::createWPEContext: %p\n", config);
+    return ret;
 }
 
 void GLContextEGL::destroyWPETarget()

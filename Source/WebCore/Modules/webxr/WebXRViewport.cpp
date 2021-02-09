@@ -34,31 +34,17 @@ namespace WebCore {
 
 WTF_MAKE_ISO_ALLOCATED_IMPL(WebXRViewport);
 
-Ref<WebXRViewport> WebXRViewport::create()
+Ref<WebXRViewport> WebXRViewport::create(int x, int y, int width, int height)
 {
-    return adoptRef(*new WebXRViewport);
+    return adoptRef(*new WebXRViewport(x, y, width, height));
 }
 
-WebXRViewport::WebXRViewport() = default;
-
-int WebXRViewport::x() const
+WebXRViewport::WebXRViewport(int x, int y, int width, int height)
+	: m_x(x)
+	, m_y(y)
+	, m_width(width)
+	, m_height(height)
 {
-    return 0;
-}
-
-int WebXRViewport::y() const
-{
-    return 0;
-}
-
-int WebXRViewport::width() const
-{
-    return 0;
-}
-
-int WebXRViewport::height() const
-{
-    return 0;
 }
 
 } // namespace WebCore

@@ -21,10 +21,15 @@
 
 #if ENABLE(WEBXR) && USE(OPENXR)
 #include "PlatformXR.h"
+#include "GLContextEGL.h"
 
 #include <wtf/HashMap.h>
 
+#include <wayland-egl.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <openxr/openxr.h>
+#include <openxr/openxr_platform.h>
 #include <wtf/WorkQueue.h>
 
 namespace PlatformXR {
@@ -80,6 +85,8 @@ private:
     XrInstance m_instance;
     XrSession m_session { XR_NULL_HANDLE };
     XrSessionState m_sessionState { XR_SESSION_STATE_UNKNOWN };
+    XrGraphicsBindingEGLMNDX m_graphicsBinding;
+    std::unique_ptr<WebCore::GLContextEGL> m_egl;
 
     WorkQueue& m_queue;
 

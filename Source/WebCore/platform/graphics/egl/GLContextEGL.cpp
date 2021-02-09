@@ -259,7 +259,9 @@ std::unique_ptr<GLContextEGL> GLContextEGL::createSurfacelessContext(PlatformDis
         return nullptr;
     }
 
-    return std::unique_ptr<GLContextEGL>(new GLContextEGL(platformDisplay, context, EGL_NO_SURFACE, Surfaceless));
+    auto ret = std::unique_ptr<GLContextEGL>(new GLContextEGL(platformDisplay, context, EGL_NO_SURFACE, Surfaceless));
+    ret->m_config = config;
+    return ret;
 }
 
 std::unique_ptr<GLContextEGL> GLContextEGL::createContext(GLNativeWindowType window, PlatformDisplay& platformDisplay)

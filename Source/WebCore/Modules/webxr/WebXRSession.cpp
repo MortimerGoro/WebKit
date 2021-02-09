@@ -555,8 +555,8 @@ bool WebXRSession::posesCanBeReported() const
         return false;
 
     // 3. If document is not active and focused, return false.
-    if (!document->hasFocus())
-        return false;
+    //if (!document->hasFocus())
+    //    return false;
 
     // 4. If session's visibilityState in not "visible", return false.
     if (m_visibilityState != XRVisibilityState::Visible)

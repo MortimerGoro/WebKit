@@ -69,7 +69,9 @@ std::unique_ptr<GLContextEGL> GLContextEGL::createWaylandContext(PlatformDisplay
         return nullptr;
     }
 
-    return std::unique_ptr<GLContextEGL>(new GLContextEGL(platformDisplay, context, surface, WTFMove(wlSurface), window));
+    auto res = std::unique_ptr<GLContextEGL>(new GLContextEGL(platformDisplay, context, surface, WTFMove(wlSurface), window));
+    res->m_config = config;
+    return res;
 }
 
 void GLContextEGL::destroyWaylandWindow()

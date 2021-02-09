@@ -36,15 +36,20 @@ namespace WebCore {
 class WebXRViewport : public RefCounted<WebXRViewport> {
     WTF_MAKE_ISO_ALLOCATED(WebXRViewport);
 public:
-    static Ref<WebXRViewport> create();
+    static Ref<WebXRViewport> create(int x, int y, int width, int height);
 
-    int x() const;
-    int y() const;
-    int width() const;
-    int height() const;
+    int x() const { return m_x; }
+    int y() const { return m_y; }
+    int width() const { return m_width; }
+    int height() const { return m_height; }
 
 private:
-    WebXRViewport();
+    explicit WebXRViewport(int x, int y, int width, int height);
+
+    int m_x;
+    int m_y;
+    int m_width;
+    int m_height;
 };
 
 } // namespace WebCore

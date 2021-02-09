@@ -18,11 +18,26 @@
  */
 
 #include "config.h"
+#if USE(LIBEPOXY)
+// FIXME: For now default to the GBM EGL platform, but this should really be
+// somehow deducible from the build configuration.
+#define __GBM__ 1
+#include "EpoxyEGL.h"
+#else
+#if PLATFORM(WAYLAND)
+// These includes need to be in this order because wayland-egl.h defines WL_EGL_PLATFORM
+// and eglplatform.h, included by egl.h, checks that to decide whether it's Wayland platform.
+#include <wayland-egl.h>
+#endif
+#include <EGL/egl.h>
+#endif
+
+
 #include "PlatformXROpenXR.h"
 
 #if ENABLE(WEBXR) && USE(OPENXR)
 
-#include "Logging.h"
+//#include "Logging.h"
 #include <openxr/openxr_platform.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/Optional.h>
@@ -161,6 +176,8 @@ Instance::Impl::Impl()
 
         const char* const enabledExtensions[] = {
             XR_MND_HEADLESS_EXTENSION_NAME,
+            XR_KHR_OPENGL_ENABLE_EXTENSION_NAME,
+            XR_MNDX_EGL_ENABLE_EXTENSION_NAME
         };
 
         auto createInfo = createStructure<XrInstanceCreateInfo, XR_TYPE_INSTANCE_CREATE_INFO>();
@@ -355,6 +372,7 @@ void OpenXRDevice::collectSupportedSessionModes()
             break;
         case XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO:
             setEnabledFeatures(SessionMode::ImmersiveVr, features);
+            setEnabledFeatures(SessionMode::Inline, features);
             break;
         default:
             continue;
@@ -424,21 +442,51 @@ WebCore::IntSize OpenXRDevice::recommendedResolution(SessionMode mode)
 
 void OpenXRDevice::initializeTrackingAndRendering(SessionMode mode)
 {
+    LOG(XR, "makelele  OpenXRDevice::initializeTrackingAndRendering1\n");
     m_queue.dispatch([this, mode]() {
+        LOG(XR, "makelele  OpenXRDevice::initializeTrackingAndRendering2\n");
         ASSERT(m_instance != XR_NULL_HANDLE);
         ASSERT(m_session == XR_NULL_HANDLE);
 
         m_currentViewConfigurationType = toXrViewConfigurationType(mode);
         ASSERT(m_configurationViews.contains(m_currentViewConfigurationType));
+        LOG(XR, "makelele  OpenXRDevice::initializeTrackingAndRendering3\n");
+
+        // OpenXR requires checking graphics requirements before creating a session.
+        auto opengl_reqs = createStructure<XrGraphicsRequirementsOpenGLKHR, XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_KHR>();
+
+        PFN_xrGetOpenGLGraphicsRequirementsKHR pfnGetOpenGLGraphicsRequirementsKHR = nullptr;
+        {
+            auto result = xrGetInstanceProcAddr(m_instance, "xrGetOpenGLGraphicsRequirementsKHR",
+                                           (PFN_xrVoidFunction*)&pfnGetOpenGLGraphicsRequirementsKHR);
+            RETURN_IF_FAILED(result, "Failed to get OpenGL graphics requirements function!", m_instance);
+
+            result = pfnGetOpenGLGraphicsRequirementsKHR(m_instance, m_systemId, &opengl_reqs);
+            RETURN_IF_FAILED(result, "Failed to get OpenGL graphics requirements!", m_instance);
+        }
+
+        LOG(XR, "makelele  OpenXRDevice::initializeTrackingAndRendering4\n");
+        m_graphicsBinding = createStructure<XrGraphicsBindingEGLMNDX, XR_TYPE_GRAPHICS_BINDING_EGL_MNDX>();
+        m_egl = GLContextEGL::createSharingContext(PlatformDisplay::sharedDisplay());
+        m_graphicsBinding.display = PlatformDisplay::sharedDisplay().eglDisplay();
+        m_graphicsBinding.context = m_egl->m_context;
+        m_graphicsBinding.config = m_egl->m_config;
+        m_graphicsBinding.getProcAddress = eglGetProcAddress;
+        LOG(XR, "makelele  OpenXRDevice::initializeTrackingAndRendering5\n");
 
         // Create the session.
         auto sessionCreateInfo = createStructure<XrSessionCreateInfo, XR_TYPE_SESSION_CREATE_INFO>();
         sessionCreateInfo.systemId = m_systemId;
+        sessionCreateInfo.next = &m_graphicsBinding;
         auto result = xrCreateSession(m_instance, &sessionCreateInfo, &m_session);
-        RETURN_IF_FAILED(result, "xrEnumerateInstanceExtensionProperties", m_instance);
+        RETURN_IF_FAILED(result, "xrCreateSession", m_instance);
+        LOG(XR, "makelele  OpenXRDevice::initializeTrackingAndRendering6\n");
 
         m_localSpace = createReferenceSpace(XR_REFERENCE_SPACE_TYPE_LOCAL);
+        LOG(XR, "makelele  OpenXRDevice::initializeTrackingAndRendering7\n");
         m_viewSpace = createReferenceSpace(XR_REFERENCE_SPACE_TYPE_VIEW);
+        LOG(XR, "makelele  OpenXRDevice::initializeTrackingAndRendering8\n");
+        LOG(XR, "makelele  OpenXRDevice::initializeTrackingAndRendering suceeded\n");
     });
 }
 
@@ -561,7 +609,7 @@ static Device::FrameData::Pose XrPosefToPose(XrPosef pose) {
 static Device::FrameData::View xrViewToPoseData(XrView view)
 {
     Device::FrameData::View pose;
-    pose.projection = Device::FrameData::Fov { view.fov.angleUp, view.fov.angleDown, view.fov.angleLeft, view.fov.angleRight };
+    pose.projection = Device::FrameData::Fov { view.fov.angleUp, -view.fov.angleDown, -view.fov.angleLeft, view.fov.angleRight };
     pose.offset = XrPosefToPose(view.pose);
     return pose;
 }
@@ -599,8 +647,9 @@ void OpenXRDevice::requestFrame(RequestFrameCallback&& callback)
             frameData.isPositionValid = (location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0;
             frameData.isPositionEmulated = (location.locationFlags & XR_SPACE_LOCATION_POSITION_TRACKED_BIT) == 0;
 
-            if (frameData.isTrackingValid)
+            if (frameData.isTrackingValid) {
                 frameData.origin = XrPosefToPose(location.pose);
+            }
             
             ASSERT(m_configurationViews.contains(m_currentViewConfigurationType));
             const auto& configurationView = m_configurationViews.get(m_currentViewConfigurationType);

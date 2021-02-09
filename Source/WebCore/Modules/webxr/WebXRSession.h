@@ -83,6 +83,9 @@ public:
     IntSize nativeWebGLFramebufferResolution() const;
     IntSize recommendedWebGLFramebufferResolution() const;
 
+    enum class InitiatedBySystem : bool { No, Yes };
+    void shutdown(InitiatedBySystem);
+
     // EventTarget.
     ScriptExecutionContext* scriptExecutionContext() const final { return ActiveDOMObject::scriptExecutionContext(); }
 
@@ -111,8 +114,6 @@ private:
     // PlatformXR::TrackingAndRenderingClient
     void sessionDidEnd() final;
 
-    enum class InitiatedBySystem : bool { No, Yes };
-    void shutdown(InitiatedBySystem);
     void didCompleteShutdown();
 
     bool referenceSpaceIsSupported(XRReferenceSpaceType) const;

@@ -38,6 +38,7 @@
 #endif
 #include "WebGLRenderingContextBase.h"
 #include "WebXRSession.h"
+#include "WebXRView.h"
 #include "WebXRViewport.h"
 #include "XRWebGLLayerInit.h"
 #include <wtf/IsoMallocInlines.h>
@@ -131,6 +132,7 @@ WebXRWebGLLayer::WebXRWebGLLayer(Ref<WebXRSession>&& session, WebXRRenderingCont
                 return WebGLFramebuffer::create(*baseContext);
             }
         );
+        m_framebuffer.object = nullptr;
     } else {
         // 1. Initialize layer’s antialias to layer’s context's actual context parameters antialias value.
         m_antialias = WTF::switchOn(m_context,
@@ -183,9 +185,13 @@ unsigned WebXRWebGLLayer::framebufferHeight() const
         });
 }
 
-RefPtr<WebXRViewport> WebXRWebGLLayer::getViewport(const WebXRView&)
+RefPtr<WebXRViewport> WebXRWebGLLayer::getViewport(const WebXRView& view)
 {
-    return { };
+    if (view.eye() == XREye::Left)
+        return WebXRViewport::create(0, 0, framebufferWidth() / 2, framebufferHeight());
+    else if (view.eye() == XREye::Right)
+        return WebXRViewport::create(framebufferWidth() / 2, 0, framebufferWidth() / 2, framebufferHeight());
+    return WebXRViewport::create(0, 0, framebufferWidth(), framebufferHeight());
 }
 
 double WebXRWebGLLayer::getNativeFramebufferScaleFactor(const WebXRSession& session)
