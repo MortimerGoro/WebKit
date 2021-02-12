@@ -1,3 +1,15 @@
+2021-02-15  Imanol Fernandez  <ifernandez@igalia.com> and Sergio Villar Senin  <svillar@igalia.com>
+
+        Implement WebXR getViewerPose and getPose
+        https://bugs.webkit.org/show_bug.cgi?id=221225
+        <rdar://problem/74112910>
+
+        Reviewed by NOBODY (OOPS!).
+
+        Mark pose related WebXR tests as passing.
+
+        * platform/wpe/TestExpectations:
+
 2021-02-17  Rob Buis  <rbuis@igalia.com>
 
         Improve percentage height in shouldComputeLogicalWidthFromAspectRatio
