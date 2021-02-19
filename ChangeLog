@@ -1,3 +1,14 @@
+2021-02-19  Imanol Fernandez  <ifernandez@igalia.com>
+
+        Implement OpenXR port graphics binding
+        https://bugs.webkit.org/show_bug.cgi?id=222173
+
+        Reviewed by NOBODY (OOPS!).
+
+        Enable OpenXR defines required for EGL graphics binding.
+
+        * Source/cmake/OptionsWPE.cmake:
+
 2021-02-18  Martin Robinson  <mrobinson@igalia.com>
 
         [GTK][WPE] Implement support for CSS Scroll Snap
