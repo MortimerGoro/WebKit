@@ -1,3 +1,14 @@
+2021-03-04  Imanol Fernandez  <ifernandez@igalia.com>
+
+        Implement WebXRBoundedReferenceSpace bounds geometry
+        https://bugs.webkit.org/show_bug.cgi?id=222737
+
+        Reviewed by NOBODY (OOPS!).
+
+        Update WebXRBoundedReferenceSpace test expectations.
+
+        * web-platform-tests/webxr/xrBoundedReferenceSpace_updates.https-expected.txt: Added.
+
 2021-02-28  Antoine Quint  <graouts@webkit.org>
 
         Blending of border-image-width should be discrete between "auto" values and other types
