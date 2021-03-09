@@ -27,25 +27,40 @@
 
 #if ENABLE(WEBXR)
 
+#include "PlatformXR.h"
 #include <wtf/IsoMalloc.h>
 #include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
 
 namespace WebCore {
 
+class Document;
 class WebXRInputSource;
+class XRInputSourceEvent;
+class WebXRSession;
 
 class WebXRInputSourceArray : public RefCounted<WebXRInputSourceArray> {
     WTF_MAKE_ISO_ALLOCATED(WebXRInputSourceArray);
 public:
-    static Ref<WebXRInputSourceArray> create() { return adoptRef(*new WebXRInputSourceArray()); }
-    ~WebXRInputSourceArray() = default;
+    using InputSourceList = Vector<PlatformXR::Device::FrameData::InputSource>;
+    static Ref<WebXRInputSourceArray> create(Ref<Document>&&, Ref<WebXRSession>&&);
+    ~WebXRInputSourceArray();
 
     unsigned length() const;
     WebXRInputSource* item(unsigned) const;
 
+    void clear();
+    void update(double timestamp, const InputSourceList&);
+
 private:
-    WebXRInputSourceArray() = default;
+    WebXRInputSourceArray(Ref<Document>&&, Ref<WebXRSession>&&);
+
+    void handleRemovedInputSources(const InputSourceList&, Vector<Ref<WebXRInputSource>>&, Vector<Ref<XRInputSourceEvent>>&);
+    void handleAddedOrUpdatedInputSources(double timestamp, const InputSourceList&, Vector<Ref<WebXRInputSource>>&, Vector<Ref<WebXRInputSource>>&, Vector<Ref<XRInputSourceEvent>>&);
+
+    Ref<Document> m_document;
+    Ref<WebXRSession> m_session;
+    Vector<Ref<WebXRInputSource>> m_inputSources;
 };
 
 } // namespace WebCore

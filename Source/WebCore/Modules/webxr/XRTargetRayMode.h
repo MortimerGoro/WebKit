@@ -29,11 +29,9 @@
 
 namespace WebCore {
 
-enum class XRTargetRayMode {
-    Gaze,
-    TrackedPointer,
-    Screen,
-};
+#include "PlatformXR.h"
+
+using XRTargetRayMode = PlatformXR::XRTargetRayMode;
 
 } // namespace WebCore
 

@@ -1,3 +1,14 @@
+2021-03-16  Imanol Fernandez  <ifernandez@igalia.com>
+
+        Implement WebXR Input Sources
+        https://bugs.webkit.org/show_bug.cgi?id=223257
+
+        Reviewed by NOBODY (OOPS!).
+
+        Update WebXR Input Source test expectations.
+
+        * platform/wpe/TestExpectations:
+
 2021-04-07  Rob Buis  <rbuis@igalia.com>
 
         Ignore non-null lastQuote ASSERT when continuation is broken
