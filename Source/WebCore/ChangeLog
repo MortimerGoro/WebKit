@@ -1,5 +1,22 @@
 2021-04-09  Imanol Fernandez  <ifernandez@igalia.com>
 
+        Use 3D points to map the WebXRBoundedReferenceSpace bounds transform
+        https://bugs.webkit.org/show_bug.cgi?id=224365
+
+        Reviewed by NOBODY (OOPS!).
+
+        WebXRBoundedReferenceSpace is currently using Point2D mapping to transfom the bounds geometry.
+        This is not correct because the originOffset is a 3D transform and it expects the bounds depth
+        coordinates to be on the z axis instead of the y axis.
+
+        There is a WPT test to reproduce this but we can't enable it yet until we fetch it from upstream (https://github.com/web-platform-tests/wpt/pull/28024),
+        currently blocked by WebGL 2 support in WPE.
+
+        * Modules/webxr/WebXRBoundedReferenceSpace.cpp:
+        (WebCore::WebXRBoundedReferenceSpace::updateIfNeeded):
+
+2021-04-09  Imanol Fernandez  <ifernandez@igalia.com>
+
         Change WebXRSpace::efectiveOrigina() matrix multiplication order
         https://bugs.webkit.org/show_bug.cgi?id=224364
 
