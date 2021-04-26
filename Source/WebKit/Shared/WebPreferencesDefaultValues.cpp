@@ -269,7 +269,7 @@ bool defaultWebXREnabled()
     return isFeatureFlagEnabled("WebXR");
 #endif
 
-    return false;
+    return true;
 }
 
 #endif // ENABLE(WEBXR)
