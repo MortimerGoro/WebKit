@@ -71,6 +71,7 @@ View::View(struct wpe_view_backend* backend, const API::PageConfiguration& baseC
 
     auto* pool = configuration->processPool();
     m_pageProxy = pool->createWebPage(*m_pageClient, WTFMove(configuration));
+    m_pageProxy->setIntrinsicDeviceScaleFactor(2.0);
 
 #if ENABLE(MEMORY_SAMPLER)
     if (getenv("WEBKIT_SAMPLE_MEMORY"))
@@ -309,8 +310,9 @@ void View::selectionDidChange()
 void View::setSize(const WebCore::IntSize& size)
 {
     m_size = size;
+    m_size.scale(1 / m_pageProxy->deviceScaleFactor());
     if (m_pageProxy->drawingArea())
-        m_pageProxy->drawingArea()->setSize(size);
+        m_pageProxy->drawingArea()->setSize(m_size);
 }
 
 void View::setViewState(OptionSet<WebCore::ActivityState::Flag> flags)
