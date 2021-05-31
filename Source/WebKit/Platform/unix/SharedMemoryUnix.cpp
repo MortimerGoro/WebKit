@@ -50,6 +50,9 @@
 #include <sys/syscall.h>
 #endif
 
+#include <glib.h>
+#include <wtf/glib/GUniquePtr.h>
+
 #if PLATFORM(PLAYSTATION)
 #include "ArgumentCoders.h"
 #endif
@@ -126,6 +129,7 @@ static inline int accessModeMMap(SharedMemory::Protection protection)
 
 static int createSharedMemory()
 {
+#if 0
     int fileDescriptor = -1;
 
 #if HAVE(LINUX_MEMFD_H)
@@ -159,25 +163,35 @@ static int createSharedMemory()
         shm_unlink(tempName.data());
 
     return fileDescriptor;
+#endif
+    return -1;
 }
 
 RefPtr<SharedMemory> SharedMemory::allocate(size_t size)
 {
-    int fileDescriptor = createSharedMemory();
+    GUniquePtr<char> name(g_build_filename(g_get_user_runtime_dir(), "WK2SharedMemory.XXXXXX", nullptr));
+    int fileDescriptor = mkstemp(name.get());
     if (fileDescriptor == -1) {
         WTFLogAlways("Failed to create shared memory: %s", strerror(errno));
         return nullptr;
     }
 
-    while (ftruncate(fileDescriptor, size) == -1) {
-        if (errno != EINTR) {
-            closeWithRetry(fileDescriptor);
-            return nullptr;
-        }
+    {
+        long flags = fcntl(fileDescriptor, F_GETFD);
+        fcntl(fileDescriptor, F_SETFD, flags | FD_CLOEXEC);
+        unlink(name.get());
+    }
+
+    int ret = posix_fallocate(fileDescriptor, 0, size);
+    if (ret != 0) {
+        WTFLogAlways("  failed to fallocate");
+        closeWithRetry(fileDescriptor);
+        return nullptr;
     }
 
     void* data = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileDescriptor, 0);
     if (data == MAP_FAILED) {
+        WTFLogAlways("  failed to mmap");
         closeWithRetry(fileDescriptor);
         return nullptr;
     }
