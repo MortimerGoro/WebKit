@@ -106,26 +106,28 @@ void ProcessLauncher::launchProcess()
 {
     IPC::Connection::SocketPair socketPair = IPC::Connection::createPlatformConnection(IPC::Connection::ConnectionOptions::SetCloexecOnServer);
 
+    m_processIdentifier = m_launchOptions.processIdentifier.toUInt64();
+
     // Android prohibits the forking syscall on non-rooted devices, so we need to
     // provide separate services equivalent to WPEWebProcess and WPENetworkProcess
     // that are spawned from the Java part.
-    WTFLogAlways("ProcessLauncher::launchProcess() processType %d\n",
-                 m_launchOptions.processType);
+    WTFLogAlways("ProcessLauncher::launchProcess() processType %d pid %ld\n",
+                 m_launchOptions.processType, m_processIdentifier)
 
-    JNIEnv* jniEnv = *reinterpret_cast<JNIEnv**>(dlsym(RTLD_DEFAULT, "s_WPEUIProcessGlue_env"));
-    jobject jniObj = *reinterpret_cast<jobject*>(dlsym(RTLD_DEFAULT, "s_WPEUIProcessGlue_object"));
+    JNIEnv* jniEnv = *reinterpret_cast<JNIEnv**>(dlsym(RTLD_DEFAULT, "s_BrowserGlue_env"));
+    jobject jniObj = *reinterpret_cast<jobject*>(dlsym(RTLD_DEFAULT, "s_BrowserGlue_object"));
     {
         jclass jClass = jniEnv->GetObjectClass(jniObj);
-        WTFLogAlways("  jClass for com/wpe/wpe/WPEUIProcessGlue %p", jClass);
-        jmethodID jMethodID = jniEnv->GetMethodID(jClass, "launchProcess", "(I[I)V");
+        WTFLogAlways("  jClass for com/wpe/wpe/BrowserGlue %p", jClass);
+        jmethodID jMethodID = jniEnv->GetMethodID(jClass, "launchProcess", "(JI[I)V");
         WTFLogAlways("  jMethodID for launchProcess %p", jMethodID);
 
         jintArray fdArray = jniEnv->NewIntArray(2);
         int fdArrayValues[2] = { socketPair.client, -1 };
         jniEnv->SetIntArrayRegion(fdArray, 0, 2, fdArrayValues);
 
-
-        jniEnv->CallVoidMethod(jniObj, jMethodID, static_cast<int>(m_launchOptions.processType), fdArray);
+        jniEnv->CallVoidMethod(jniObj, jMethodID, static_cast<long>(m_processIdentifier),
+                               static_cast<int>(m_launchOptions.processType), fdArray);
 
         jniEnv->DeleteLocalRef(fdArray);
         jniEnv->DeleteLocalRef(jClass);
@@ -144,7 +146,21 @@ void ProcessLauncher::terminateProcess()
         return;
     }
 
-    // TODO: Call into the Android layer to terminate the equivalent service.
+    WTFLogAlways("ProcessLauncher::terminateProcess() pid %ld\n",
+                 m_processIdentifier);
+
+    JNIEnv* jniEnv = *reinterpret_cast<JNIEnv**>(dlsym(RTLD_DEFAULT, "s_BrowserGlue_env"));
+    jobject jniObj = *reinterpret_cast<jobject*>(dlsym(RTLD_DEFAULT, "s_BrowserGlue_object"));
+    {
+        jclass jClass = jniEnv->GetObjectClass(jniObj);
+        WTFLogAlways("  jClass for com/wpe/wpe/BrowserGlue %p", jClass);
+        jmethodID jMethodID = jniEnv->GetMethodID(jClass, "terminateProcess", "(J)V");
+        WTFLogAlways("  jMethodID for launchProcess %p", jMethodID);
+
+        jniEnv->CallVoidMethod(jniObj, jMethodID, static_cast<long>(m_processIdentifier));
+
+        jniEnv->DeleteLocalRef(jClass);
+    }
 }
 
 void ProcessLauncher::platformInvalidate()
