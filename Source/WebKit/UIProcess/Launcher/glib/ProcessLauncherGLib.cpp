@@ -112,7 +112,7 @@ void ProcessLauncher::launchProcess()
     // provide separate services equivalent to WPEWebProcess and WPENetworkProcess
     // that are spawned from the Java part.
     WTFLogAlways("ProcessLauncher::launchProcess() processType %d pid %ld\n",
-                 m_launchOptions.processType, m_processIdentifier)
+                 m_launchOptions.processType, m_processIdentifier);
 
     JNIEnv* jniEnv = *reinterpret_cast<JNIEnv**>(dlsym(RTLD_DEFAULT, "s_BrowserGlue_env"));
     jobject jniObj = *reinterpret_cast<jobject*>(dlsym(RTLD_DEFAULT, "s_BrowserGlue_object"));
