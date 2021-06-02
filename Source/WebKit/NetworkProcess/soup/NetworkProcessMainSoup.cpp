@@ -37,28 +37,23 @@
 
 namespace WebKit {
 
-class NetworkProcessMainSoup final: public AuxiliaryProcessMainBaseNoSingleton<NetworkProcess> {
-public:
-    bool platformInitialize() override
-    {
-#if USE(GCRYPT)
-        PAL::GCrypt::initialize();
-#endif
-        return true;
-    }
-
-    void platformFinalize() override
-    {
-        // FIXME: Is this still needed? We should probably destroy all existing sessions at this point instead.
-        // Needed to destroy the SoupSession and SoupCookieJar, e.g. to avoid
-        // leaking SQLite temporary journaling files.
-        process().destroySession(PAL::SessionID::defaultSessionID());
-    }
-};
-
 int NetworkProcessMain(int argc, char** argv)
 {
-    return AuxiliaryProcessMain<NetworkProcessMainSoup>(argc, argv);
+    return AuxiliaryProcessMain<AuxiliaryProcessMainBaseNoSingleton<NetworkProcess>>(argc, argv);
 }
 
 } // namespace WebKit
+
+extern "C" {
+
+__attribute__((visibility("default")))
+int android_NetworkProcess_main(int argc, char** argv)
+{
+    ALOGV("android_NetworkProcess_main() argc %d, argv %p\n", argc, argv);
+    for (int i = 0; i < argc; ++i)
+        ALOGV("  argv[%d] -- %s\n", i, argv[i]);
+    return WebKit::NetworkProcessMain(argc, argv);
+}
+
+}
+

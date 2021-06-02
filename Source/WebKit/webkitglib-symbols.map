@@ -11,6 +11,7 @@ global:
     "WebKit::WebKitExtensionManager::singleton()";
     "WebKit::WebProcessMain(int, char**)";
   };
+  android_*;
 local:
   *;
 };

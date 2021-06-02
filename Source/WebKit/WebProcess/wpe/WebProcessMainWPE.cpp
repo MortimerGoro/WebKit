@@ -107,3 +107,17 @@ int WebProcessMain(int argc, char** argv)
 }
 
 } // namespace WebKit
+
+extern "C" {
+
+__attribute__((visibility("default")))
+int android_WebProcess_main(int argc, char** argv)
+{
+    ALOGV("android_WebProcess_main() argc %d, argv %p\n", argc, argv);
+    for (int i = 0; i < argc; ++i)
+        ALOGV("  argv[%d] -- %s\n", i, argv[i]);
+    return WebKit::WebProcessMain(argc, argv);
+}
+
+}
+
