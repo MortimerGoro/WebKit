@@ -268,7 +268,7 @@ bool defaultWebXREnabled()
 #if HAVE(WEBXR_INTERNALS)
     return true;
 #else
-    return false;
+    return true;
 #endif
 }
 

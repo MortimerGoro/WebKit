@@ -200,6 +200,9 @@ public:
     WEBCORE_EXPORT FloatPoint matrixTransform(const TransformationMatrix&) const;
     WEBCORE_EXPORT FloatPoint matrixTransform(const AffineTransform&) const;
 
+    template<class Encoder> void encode(Encoder&) const;
+    template<class Decoder> static std::optional<FloatPoint> decode(Decoder&);
+
 private:
     float m_x { 0 };
     float m_y { 0 };

@@ -293,6 +293,7 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBKIT_DIR}/WebProcess/WebPage/wpe"
     "${WEBKIT_DIR}/WebProcess/glib"
     "${WEBKIT_DIR}/WebProcess/soup"
+    "${WEBKIT_DIR}/WebProcess/wpe"
 )
 
 list(APPEND WebKit_SYSTEM_INCLUDE_DIRECTORIES
@@ -351,6 +352,11 @@ if (ENABLE_MEDIA_STREAM)
         WebProcess/glib/UserMediaCaptureManager
     )
 endif ()
+
+list(APPEND WebKit_MESSAGES_IN_FILES
+    WebProcess/wpe/PlatformXRSystemProxy
+    UIProcess/wpe/PlatformXRSystem
+)
 
 WEBKIT_BUILD_INSPECTOR_GRESOURCES(${WebInspectorUI_DERIVED_SOURCES_DIR})
 list(APPEND WPEWebInspectorResources_DERIVED_SOURCES

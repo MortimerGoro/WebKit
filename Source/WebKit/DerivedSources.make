@@ -161,6 +161,7 @@ MESSAGE_RECEIVERS = \
 	UIProcess/ios/SmartMagnificationController \
 	UIProcess/mac/SecItemShimProxy \
 	UIProcess/WebGeolocationManagerProxy \
+	UIProcess/wpe/PlatformXRSystem \
 	UIProcess/Cocoa/PlatformXRSystem \
 	UIProcess/Cocoa/PlaybackSessionManagerProxy \
 	UIProcess/Cocoa/UserMediaCaptureManagerProxy \
@@ -220,6 +221,7 @@ MESSAGE_RECEIVERS = \
 	WebProcess/Storage/WebSWClientConnection \
 	WebProcess/WebProcess \
 	WebProcess/cocoa/PlatformXRSystemProxy \
+	WebProcess/wpe/PlatformXRSystemProxy \
 	WebProcess/cocoa/PlaybackSessionManager \
 	WebProcess/cocoa/RemoteCaptureSampleManager \
 	WebProcess/cocoa/UserMediaCaptureManager \

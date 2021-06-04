@@ -119,6 +119,9 @@ public:
     
     float distanceTo(const FloatPoint3D& a) const;
 
+    template<class Encoder> void encode(Encoder&) const;
+    template<class Decoder> static std::optional<FloatPoint3D> decode(Decoder&);
+
 private:
     float m_x { 0 };
     float m_y { 0 };

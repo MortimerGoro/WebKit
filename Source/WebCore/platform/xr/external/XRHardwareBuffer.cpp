@@ -1,0 +1,141 @@
+/*
+ * Copyright (C) 2021 Igalia, S.L.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Library General Public License for more details.
+ *
+ * You should have received a copy of the GNU Library General Public License
+ * aint with this library; see the file COPYING.LIB.  If not, write to
+ * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA 02110-1301, USA.
+ */
+
+#include "config.h"
+
+#if ENABLE(WEBXR) && USE(EXTERNALXR)
+#include "XRHardwareBuffer.h"
+#include <android/hardware_buffer.h>
+#include <android/hardware_buffer_jni.h>
+
+#include <android/log.h>
+#define XR_LOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, "PlatformXR::ExternalDevice", __VA_ARGS__)
+#define XR_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "PlatformXR::ExternalDevice", __VA_ARGS__)
+
+constexpr uint32_t poolSize = 3; 
+
+using namespace WebCore;
+
+namespace PlatformXR {
+
+
+std::unique_ptr<XRHardwareBuffer> XRHardwareBuffer::create(JNIEnv* env, WebCore::GLContextEGL& egl, WebCore::GraphicsContextGL& gl, uint32_t width, uint32_t height, bool alpha)
+{
+    auto buffer = std::unique_ptr<XRHardwareBuffer>(new XRHardwareBuffer(env, egl, gl, width, height, alpha));
+    if (!buffer->initialize())
+        return nullptr;
+
+    return buffer;
+}
+
+XRHardwareBuffer::XRHardwareBuffer(JNIEnv* env, WebCore::GLContextEGL& egl, WebCore::GraphicsContextGL& gl, uint32_t width, uint32_t height, bool alpha)
+    : m_env(env)
+    , m_egl(egl)
+    , m_gl(gl)
+    , m_width(width)
+    , m_height(height)
+    , m_alpha(alpha)
+{
+}
+
+XRHardwareBuffer::~XRHardwareBuffer()
+{
+    for (auto& buffer: m_pool) {
+        if (buffer.texture)
+            m_gl.deleteTexture(buffer.texture);
+        if (buffer.image != EGL_NO_IMAGE_KHR)
+            m_eglExt.destroyImageKHR(PlatformDisplay::sharedDisplay().eglDisplay(), buffer.image);
+        if (buffer.hardwareBuffer)
+            AHardwareBuffer_release(buffer.hardwareBuffer);
+        if (buffer.javaObject)
+            m_env->DeleteGlobalRef(buffer.javaObject);
+    }
+
+    m_pool.clear();
+}
+
+bool XRHardwareBuffer::initialize()
+{
+    m_eglExt.getNativeClientBufferANDROID = reinterpret_cast<PFNEGLGETNATIVECLIENTBUFFERANDROIDPROC>(eglGetProcAddress("eglGetNativeClientBufferANDROID"));
+    m_eglExt.createImageKHR = reinterpret_cast<PFNEGLCREATEIMAGEKHRPROC>(eglGetProcAddress("eglCreateImageKHR"));
+    m_eglExt.destroyImageKHR = reinterpret_cast<PFNEGLDESTROYIMAGEKHRPROC>(eglGetProcAddress("eglDestroyImageKHR"));
+    m_eglExt.imageTargetTexture2DOES = reinterpret_cast<PFNGLEGLIMAGETARGETTEXTURE2DOESPROC>(eglGetProcAddress("glEGLImageTargetTexture2DOES"));
+
+    if (!m_eglExt.isValid())
+        return false;
+
+    AHardwareBuffer_Desc desc { };
+    desc.width = m_width;
+    desc.height = m_height;
+    desc.format = m_alpha ? AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM : AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM;
+    desc.layers = 1;
+    desc.usage = AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE | AHARDWAREBUFFER_USAGE_GPU_FRAMEBUFFER;
+    for (uint32_t i = 0; i < poolSize; ++i) {
+        Buffer buffer { };
+        
+        AHardwareBuffer_allocate(&desc, &buffer.hardwareBuffer);
+        if (!buffer.hardwareBuffer)
+            return false;
+
+        buffer.clientBuffer = m_eglExt.getNativeClientBufferANDROID(buffer.hardwareBuffer);
+        if (!buffer.clientBuffer)
+            return false;
+
+        buffer.image = m_eglExt.createImageKHR(PlatformDisplay::sharedDisplay().eglDisplay(), EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID, buffer.clientBuffer, nullptr);
+        if (buffer.image == EGL_NO_IMAGE_KHR)
+            return false;
+
+        buffer.texture = m_gl.createTexture();
+        m_gl.bindTexture(GL_TEXTURE_2D, buffer.texture);
+        m_eglExt.imageTargetTexture2DOES(GL_TEXTURE_2D, buffer.image);
+
+        buffer.javaObject = m_env->NewGlobalRef(AHardwareBuffer_toHardwareBuffer(m_env, buffer.hardwareBuffer));
+
+        m_pool.append(WTFMove(buffer));
+    }
+
+
+    return true;
+}
+
+Device::FrameData::LayerData XRHardwareBuffer::startFrame()
+{
+    ASSERT(!m_frameStarted);
+    Device::FrameData::LayerData data { };
+    data.opaqueTexture = m_pool.at(m_poolIndex).texture;
+
+    m_frameStarted = true;
+
+    return data;
+}
+
+jobject XRHardwareBuffer::endFrame()
+{
+    ASSERT(m_frameStarted);
+    jobject javaObject = m_pool.at(m_poolIndex).javaObject;
+
+    m_poolIndex = (m_poolIndex + 1) % poolSize;
+    m_frameStarted = false;
+    return javaObject;
+}
+
+
+} // namespace PlatformXR
+
+#endif // ENABLE(WEBXR) && USE(EXTERNALXR)
