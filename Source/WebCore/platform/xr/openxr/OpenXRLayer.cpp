@@ -93,7 +93,6 @@ XrCompositionLayerBaseHeader* OpenXRLayerProjection::endFrame(const Device::Laye
     return reinterpret_cast<XrCompositionLayerBaseHeader*>(&m_layerProjection);
 }
 
-
 } // namespace PlatformXR
 
 #endif // ENABLE(WEBXR) && USE(OPENXR)

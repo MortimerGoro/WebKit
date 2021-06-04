@@ -2227,6 +2227,7 @@ platform/xr/openxr/OpenXRExtensions.cpp @no-unify
 platform/xr/openxr/OpenXRLayer.cpp @no-unify
 platform/xr/openxr/OpenXRSwapchain.cpp @no-unify
 platform/xr/openxr/PlatformXROpenXR.cpp @no-unify
+platform/xr/external/PlatformXRExternal.cpp @no-unify
 plugins/DOMMimeType.cpp
 plugins/DOMMimeTypeArray.cpp
 plugins/DOMPlugin.cpp
