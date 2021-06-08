@@ -2560,6 +2560,16 @@
 		0FFED98F23A3203700EEF459 /* WKWebViewMac.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = WKWebViewMac.mm; sourceTree = "<group>"; };
 		0FFED99023A3203800EEF459 /* WKWebViewMac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WKWebViewMac.h; sourceTree = "<group>"; };
 		1058C7B1FEA5585E11CA2CBB /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
+		118502452670269400A6425E /* WebProcessMainWPE.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = WebProcessMainWPE.cpp; sourceTree = "<group>"; };
+		118502462670269400A6425E /* PlatformXRSystemProxy.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PlatformXRSystemProxy.h; sourceTree = "<group>"; };
+		118502472670269400A6425E /* PlatformXRSystemProxy.messages.in */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = PlatformXRSystemProxy.messages.in; sourceTree = "<group>"; };
+		118502482670269400A6425E /* PlatformXRSystemProxy.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = PlatformXRSystemProxy.cpp; sourceTree = "<group>"; };
+		1185024E267026CA00A6425E /* WebContextMenuProxyWPE.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WebContextMenuProxyWPE.h; sourceTree = "<group>"; };
+		1185024F267026CA00A6425E /* PlatformXRSystem.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = PlatformXRSystem.cpp; sourceTree = "<group>"; };
+		11850250267026CA00A6425E /* WebPageProxyWPE.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = WebPageProxyWPE.cpp; sourceTree = "<group>"; };
+		11850251267026CA00A6425E /* PlatformXRCoordinator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PlatformXRCoordinator.h; sourceTree = "<group>"; };
+		11850252267026CA00A6425E /* PlatformXRSystem.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PlatformXRSystem.h; sourceTree = "<group>"; };
+		11850253267026CA00A6425E /* PlatformXRSystem.messages.in */ = {isa = PBXFileReference; lastKnownFileType = text; path = PlatformXRSystem.messages.in; sourceTree = "<group>"; };
 		1A002D3E196B329400B9AD44 /* _WKSessionState.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = _WKSessionState.mm; sourceTree = "<group>"; };
 		1A002D3F196B329400B9AD44 /* _WKSessionState.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = _WKSessionState.h; sourceTree = "<group>"; };
 		1A002D42196B337000B9AD44 /* _WKSessionStateInternal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = _WKSessionStateInternal.h; sourceTree = "<group>"; };
@@ -6409,6 +6419,30 @@
 			name = "Other Frameworks";
 			sourceTree = "<group>";
 		};
+		118502442670269400A6425E /* wpe */ = {
+			isa = PBXGroup;
+			children = (
+				118502452670269400A6425E /* WebProcessMainWPE.cpp */,
+				118502462670269400A6425E /* PlatformXRSystemProxy.h */,
+				118502472670269400A6425E /* PlatformXRSystemProxy.messages.in */,
+				118502482670269400A6425E /* PlatformXRSystemProxy.cpp */,
+			);
+			path = wpe;
+			sourceTree = "<group>";
+		};
+		1185024D267026CA00A6425E /* wpe */ = {
+			isa = PBXGroup;
+			children = (
+				1185024E267026CA00A6425E /* WebContextMenuProxyWPE.h */,
+				1185024F267026CA00A6425E /* PlatformXRSystem.cpp */,
+				11850250267026CA00A6425E /* WebPageProxyWPE.cpp */,
+				11850251267026CA00A6425E /* PlatformXRCoordinator.h */,
+				11850252267026CA00A6425E /* PlatformXRSystem.h */,
+				11850253267026CA00A6425E /* PlatformXRSystem.messages.in */,
+			);
+			path = wpe;
+			sourceTree = "<group>";
+		};
 		1A0EC6B0124BBD36007EF4A5 /* PluginProcess */ = {
 			isa = PBXGroup;
 			children = (
@@ -9770,6 +9804,7 @@
 				BC032D5D10F437220058C15A /* WebCoreSupport */,
 				BC032D5E10F4372B0058C15A /* WebPage */,
 				1AAC4DDE16B1CBF6009425E3 /* WebStorage */,
+				118502442670269400A6425E /* wpe */,
 				BCE9C0CF1485965D00E33D61 /* WebConnectionToUIProcess.cpp */,
 				BCE9C0D01485965D00E33D61 /* WebConnectionToUIProcess.h */,
 				BC111AE3112F5C2600337BAB /* WebProcess.cpp */,
@@ -9935,6 +9970,7 @@
 				1AAF089E192681AC00B6390C /* UserContent */,
 				57608294202BD84900116678 /* WebAuthentication */,
 				1A53C2A31A325691004E8C70 /* WebsiteData */,
+				1185024D267026CA00A6425E /* wpe */,
 				E1513C64166EABB200149FCB /* AuxiliaryProcessProxy.cpp */,
 				E1513C65166EABB200149FCB /* AuxiliaryProcessProxy.h */,
 				46A2B6061E5675A200C3DEDA /* BackgroundProcessResponsivenessTimer.cpp */,
