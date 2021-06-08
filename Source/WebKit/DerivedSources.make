@@ -103,6 +103,7 @@ VPATH = \
     $(WebKit2)/UIProcess/WebAuthentication \
     $(WebKit2)/UIProcess/mac \
     $(WebKit2)/UIProcess/ios \
+    $(WebKit2)/UIProcess/wpe \
     $(WEBKITADDITIONS_HEADER_SEARCH_PATHS) \
 #
 
@@ -161,6 +162,7 @@ MESSAGE_RECEIVERS = \
 	UIProcess/ios/SmartMagnificationController \
 	UIProcess/mac/SecItemShimProxy \
 	UIProcess/WebGeolocationManagerProxy \
+	UIProcess/wpe/PlatformXRSystem \
 	UIProcess/Cocoa/PlatformXRSystem \
 	UIProcess/Cocoa/PlaybackSessionManagerProxy \
 	UIProcess/Cocoa/UserMediaCaptureManagerProxy \
@@ -219,7 +221,7 @@ MESSAGE_RECEIVERS = \
 	WebProcess/Storage/WebSWContextManagerConnection \
 	WebProcess/Storage/WebSWClientConnection \
 	WebProcess/WebProcess \
-	WebProcess/cocoa/PlatformXRSystemProxy \
+	WebProcess/wpe/PlatformXRSystemProxy \
 	WebProcess/cocoa/PlaybackSessionManager \
 	WebProcess/cocoa/RemoteCaptureSampleManager \
 	WebProcess/cocoa/UserMediaCaptureManager \

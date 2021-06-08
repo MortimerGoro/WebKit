@@ -91,6 +91,8 @@ Shared/libwpe/NativeWebMouseEventLibWPE.cpp
 Shared/libwpe/NativeWebTouchEventLibWPE.cpp
 Shared/libwpe/NativeWebWheelEventLibWPE.cpp
 Shared/libwpe/WebEventFactory.cpp
+Shared/libwpe/XRDeviceInfo.cpp
+Shared/libwpe/XRDeviceProxy.cpp
 
 Shared/linux/WebMemorySamplerLinux.cpp
 
@@ -221,6 +223,7 @@ UIProcess/soup/WebCookieManagerProxySoup.cpp
 UIProcess/soup/WebProcessPoolSoup.cpp
 
 UIProcess/wpe/WebPageProxyWPE.cpp
+UIProcess/wpe/PlatformXRSystem.cpp
 
 WebProcess/GPU/media/gstreamer/VideoLayerRemoteGStreamer.cpp
 
@@ -269,3 +272,5 @@ WebProcess/WebPage/wpe/WebPageWPE.cpp
 WebProcess/glib/WebProcessGLib.cpp
 
 WebProcess/wpe/WebProcessMainWPE.cpp
+
+WebProcess/wpe/PlatformXRSystemProxy.cpp
