@@ -110,7 +110,12 @@ std::unique_ptr<PlatformXRExternal> PlatformXRExternal::create()
     if (!shmem)
         return nullptr;
 
-    std::unique_ptr<PlatformXRExternal> platform(new PlatformXRExternal(jniEnv, shmem, WorkQueue::create("PlatformXRExternal queue")));
+    auto queue = WorkQueue::create("PlatformXRExternal queue");
+    queue->dispatch([]{
+        ALOGV("Que dispatch test");    
+    });
+
+    std::unique_ptr<PlatformXRExternal> platform(new PlatformXRExternal(jniEnv, shmem, WTFMove(queue)));
     return platform;
 }
 
@@ -118,18 +123,22 @@ PlatformXRExternal::PlatformXRExternal(JNIEnv* env, PlatformXR::VRExternalShmem*
     : m_env(env)
     , m_shmem(shmem)
     , m_queue(WTFMove(queue))
-    //, m_identifier(XRDeviceIdentifier::generate())
+    , m_identifier(XRDeviceIdentifier::generate())
+    , m_browserState({ })
+    , m_systemState({ })
 {
 }
 
 void PlatformXRExternal::getPrimaryDeviceInfo(DeviceInfoCallback&& callback)
 {
-    ASSERT(isMainThread());
+    ALOGV("makelele getPrimaryDeviceInfo1: %p", m_shmem);
     m_queue.dispatch([this, callback = WTFMove(callback)]() mutable {
+        ALOGV("makelele getPrimaryDeviceInfo3");
         // Wait until the external shmem has valid data.
         pullState([this](){
-            return m_enumerationCompleted;
+            return m_systemState.enumerationCompleted;
         });
+        ALOGV("makelele getPrimaryDeviceInfo4");
 
         XRDeviceInfo info;
         info.identifier = m_identifier;
@@ -139,7 +148,11 @@ void PlatformXRExternal::getPrimaryDeviceInfo(DeviceInfoCallback&& callback)
             2 * m_systemState.displayState.eyeResolution.width, m_systemState.displayState.eyeResolution.height
         };
 
+        ALOGV("makelele getPrimaryDeviceInfo6: %dx%d", info.recommendedResolution.width(), info.recommendedResolution.height());
+
         callback(info);
+
+        ALOGV("makelele getPrimaryDeviceInfo7");
     });
 }
 

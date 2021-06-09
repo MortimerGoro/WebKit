@@ -58,7 +58,6 @@ private:
     HashMap<PlatformXR::LayerHandle, std::unique_ptr<XRHardwareBuffer>> m_layers;
     PlatformXR::VRBrowserState m_browserState;
     PlatformXR::VRSystemState m_systemState;
-    bool m_enumerationCompleted { false };
     uint64_t m_frameId { 0 };
     PlatformXR::LayerHandle m_layerIndex { 0 };
 };
