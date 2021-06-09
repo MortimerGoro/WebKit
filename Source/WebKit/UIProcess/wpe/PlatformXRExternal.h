@@ -32,7 +32,7 @@ namespace WebKit {
 
 class XRHardwareBuffer;
 
-class PlatformXRExternal final : private PlatformXRCoordinator {
+class PlatformXRExternal final : public PlatformXRCoordinator {
 public:
     static std::unique_ptr<PlatformXRExternal> create();
 
@@ -45,6 +45,7 @@ private:
     void scheduleAnimationFrame(WebPageProxy&, PlatformXR::Device::RequestFrameCallback&&) override;
     void submitFrame(WebPageProxy&, Vector<PlatformXR::Device::Layer>&&) override;
     std::optional<PlatformXR::LayerHandle> createLayerProjection(WebPageProxy&, uint32_t width, uint32_t height, bool alpha) override;
+    void deleteLayer(PlatformXR::LayerHandle handle);
 
     // Custom methods
     void pushState(bool notifyCond = false);

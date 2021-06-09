@@ -37,6 +37,10 @@
 #include <wtf/MachSendRight.h>
 #endif
 
+#if USE(EXTERNALXR)
+class AHardwareBuffer;
+#endif
+
 namespace PlatformXR {
 
 enum class SessionMode : uint8_t {
@@ -173,6 +177,9 @@ public:
         struct LayerData {
 #if USE(IOSURFACE_FOR_XR_LAYER_DATA)
             std::unique_ptr<WebCore::IOSurface> surface;
+#elif USE(EXTERNALXR)
+            AHardwareBuffer* hardwareBuffer { 0 };
+            PlatformGLObject opaqueTexture { 0 };
 #else
             PlatformGLObject opaqueTexture { 0 };
 #endif
@@ -439,6 +446,9 @@ void Device::FrameData::LayerData::encode(Encoder& encoder) const
 #if USE(IOSURFACE_FOR_XR_LAYER_DATA)
     WTF::MachSendRight surfaceSendRight = surface ? surface->createSendRight() : WTF::MachSendRight();
     encoder << surfaceSendRight;
+#elif USE(EXTERNALXR)
+    // TODO
+    UNUSED_PARAM(encoder);
 #else
     encoder << opaqueTexture;
 #endif
@@ -453,6 +463,9 @@ std::optional<Device::FrameData::LayerData> Device::FrameData::LayerData::decode
     if (!decoder.decode(surfaceSendRight))
         return std::nullopt;
     layerData.surface = WebCore::IOSurface::createFromSendRight(WTFMove(surfaceSendRight), WebCore::DestinationColorSpace::SRGB());
+#elif USE(EXTERNALXR)
+    // TODO
+    UNUSED_PARAM(decoder);
 #else
     if (!decoder.decode(layerData.opaqueTexture))
         return std::nullopt;
@@ -577,6 +590,15 @@ template<> struct EnumTraits<PlatformXR::ReferenceSpaceType> {
         PlatformXR::ReferenceSpaceType::LocalFloor,
         PlatformXR::ReferenceSpaceType::BoundedFloor,
         PlatformXR::ReferenceSpaceType::Unbounded
+    >;
+};
+
+template<> struct EnumTraits<PlatformXR::Eye> {
+    using values = EnumValues<
+        PlatformXR::Eye,
+        PlatformXR::Eye::None,
+        PlatformXR::Eye::Left,
+        PlatformXR::Eye::Right
     >;
 };
 

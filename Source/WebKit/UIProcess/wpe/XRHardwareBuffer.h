@@ -32,8 +32,8 @@ public:
     static std::unique_ptr<XRHardwareBuffer> create(JNIEnv*, uint32_t width, uint32_t height, bool alpha);
     ~XRHardwareBuffer();
 
-    AHardwareBuffer* startFrame();
-    jobject endFrame();
+    PlatformXR::Device::FrameData::LayerData startFrame();
+    void endFrame();
 
 private:
     XRHardwareBuffer(JNIEnv*, uint32_t width, uint32_t height, bool alpha);

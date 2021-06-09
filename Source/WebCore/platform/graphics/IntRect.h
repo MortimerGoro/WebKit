@@ -217,23 +217,8 @@ public:
     WEBCORE_EXPORT operator NSRect() const;
 #endif
 
-template<class Encoder>
-void encode(Encoder& encoder) const
-{
-    encoder << m_location << m_size;
-}
-
-template<class Decoder>
-std::optional<IntRect> decode(Decoder& decoder)
-{
-    IntRect rect;
-    if (!decoder.decode(rect.m_location))
-        return std::nullopt;
-    if (!decoder.decode(rect.m_size))
-        return std::nullopt;
-
-    return rect;
-}
+    template<class Encoder> void encode(Encoder&) const;
+    template<class Decoder> static std::optional<IntRect> decode(Decoder&);
 
 private:
     IntPoint m_location;
@@ -289,5 +274,26 @@ WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const IntRect&);
 #ifdef __OBJC__
 WEBCORE_EXPORT id makeNSArrayElement(const IntRect&);
 #endif
+
+template<class Encoder>
+void IntRect::encode(Encoder& encoder) const
+{
+    UNUSED_PARAM(encoder);
+    encoder << m_location << m_size;
+}
+
+template<class Decoder>
+std::optional<IntRect> IntRect::decode(Decoder& decoder)
+{
+    IntRect rect;
+    UNUSED_PARAM(decoder);
+    if (!decoder.decode(rect.m_location))
+        return std::nullopt;
+    if (!decoder.decode(rect.m_size))
+        return std::nullopt;
+
+    return rect;
+}
+
 
 } // namespace WebCore

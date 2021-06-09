@@ -24,19 +24,15 @@
 #include <android/hardware_buffer.h>
 #include <android/hardware_buffer_jni.h>
 
-#include <android/log.h>
-#define XR_LOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, "PlatformXR::ExternalDevice", __VA_ARGS__)
-#define XR_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "PlatformXR::ExternalDevice", __VA_ARGS__)
-
 constexpr uint32_t poolSize = 3; 
 
 using namespace WebCore;
 
-namespace PlatformXR {
+namespace WebKit {
 
 std::unique_ptr<XRHardwareBuffer> XRHardwareBuffer::create(JNIEnv* env, uint32_t width, uint32_t height, bool alpha)
 {
-    auto buffer = std::unique_ptr<XRHardwareBuffer>(new XRHardwareBuffer(env, egl, gl, width, height, alpha));
+    auto buffer = std::unique_ptr<XRHardwareBuffer>(new XRHardwareBuffer(env, width, height, alpha));
     if (!buffer->initialize())
         return nullptr;
 
@@ -45,8 +41,6 @@ std::unique_ptr<XRHardwareBuffer> XRHardwareBuffer::create(JNIEnv* env, uint32_t
 
 XRHardwareBuffer::XRHardwareBuffer(JNIEnv* env, uint32_t width, uint32_t height, bool alpha)
     : m_env(env)
-    , m_egl(egl)
-    , m_gl(gl)
     , m_width(width)
     , m_height(height)
     , m_alpha(alpha)
@@ -84,25 +78,24 @@ bool XRHardwareBuffer::initialize()
     return true;
 }
 
-Device::FrameData::LayerData XRHardwareBuffer::startFrame()
+PlatformXR::Device::FrameData::LayerData XRHardwareBuffer::startFrame()
 {
     ASSERT(!m_frameStarted);
-    Device::FrameData::LayerData data { };
-    data.opaqueTexture = m_pool.at(m_poolIndex).texture;
-
     m_frameStarted = true;
+
+    auto buffer = m_pool.at(m_poolIndex);
+
+    PlatformXR::Device::FrameData::LayerData data;
+    data.hardwareBuffer = buffer;
 
     return data;
 }
 
-jobject XRHardwareBuffer::endFrame()
+void XRHardwareBuffer::endFrame()
 {
     ASSERT(m_frameStarted);
-    jobject javaObject = m_pool.at(m_poolIndex).javaObject;
-
     m_poolIndex = (m_poolIndex + 1) % poolSize;
     m_frameStarted = false;
-    return javaObject;
 }
 
 

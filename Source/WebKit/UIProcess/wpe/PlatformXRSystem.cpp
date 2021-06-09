@@ -29,8 +29,8 @@
 #if ENABLE(WEBXR) && USE(EXTERNALXR)
 
 #include "PlatformXRCoordinator.h"
-#include "PlatformXRSystemMessages.h"
 #include "PlatformXRSystemProxyMessages.h"
+#include "PlatformXRExternal.h"
 #include "WebPageProxy.h"
 #include "WebProcessProxy.h"
 
@@ -105,13 +105,13 @@ void PlatformXRSystem::submitFrame(Vector<PlatformXR::Device::Layer>&& layers)
         xrCoordinator->submitFrame(m_page, WTFMove(layers));
 }
 
-void createLayerProjection(uint32_t width, uint32_t height, bool alpha, CompletionHandler<void(std::optional<int>)>&& completionHandler)
+void PlatformXRSystem::createLayerProjection(uint32_t width, uint32_t height, bool alpha, Messages::PlatformXRSystem::CreateLayerProjection::DelayedReply&& reply)
 {
     std::optional<int> handle;
     if (auto* xrCoordinator = PlatformXRSystem::xrCoordinator())
-        handle = xrCoordinator->createLayerProjection(m_page, uint32_t width, uint32_t height, bool alpha);
+        handle = xrCoordinator->createLayerProjection(m_page, width, height, alpha);
 
-    completionHandler(handle);
+    reply(handle);
 }
 
 }
@@ -123,7 +123,11 @@ namespace WebKit {
 
 PlatformXRCoordinator* PlatformXRSystem::xrCoordinator()
 {
-    return nullptr;
+    static std::unique_ptr<PlatformXRExternal> instance = nullptr;
+    if (!instance)
+        instance = PlatformXRExternal::create();
+
+    return instance.get();
 }
 
 }

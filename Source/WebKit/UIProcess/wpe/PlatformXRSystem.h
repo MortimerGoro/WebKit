@@ -28,6 +28,7 @@
 #if ENABLE(WEBXR) && USE(EXTERNALXR)
 
 #include "MessageReceiver.h"
+#include "PlatformXRSystemMessages.h"
 #include <WebCore/PlatformXR.h>
 
 namespace WebKit {
@@ -50,6 +51,7 @@ private:
 
     // IPC::MessageReceiver
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) final;
+    bool didReceiveSyncMessage(IPC::Connection&, IPC::Decoder&, UniqueRef<IPC::Encoder>&) final;
 
     // Message handlers
     void enumerateImmersiveXRDevices(CompletionHandler<void(Vector<XRDeviceInfo>&&)>&&);
@@ -57,7 +59,7 @@ private:
     void shutDownTrackingAndRendering();
     void requestFrame(CompletionHandler<void(PlatformXR::Device::FrameData&&)>&&);
     void submitFrame(Vector<PlatformXR::Device::Layer>&&);
-    void createLayerProjection(uint32_t width, uint32_t height, bool alpha, CompletionHandler<void(std::optional<int>)>&& completionHandler);
+    void createLayerProjection(uint32_t width, uint32_t height, bool alpha, Messages::PlatformXRSystem::CreateLayerProjection::DelayedReply&& reply);
 
     WebPageProxy& m_page;
 };

@@ -67,3 +67,4 @@
 
 #include <android/log.h>
 #define ALOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, "WPEDebug", __VA_ARGS__)
+#define ALOGE(...) __android_log_print(ANDROID_LOG_ERROR, "WPEError", __VA_ARGS__)

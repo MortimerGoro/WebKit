@@ -145,22 +145,8 @@ public:
     operator D2D1_POINT_2U() const;
 #endif
 
-template<class Encoder>
-void encode(Encoder& encoder) const
-{
-    encoder << m_x << m_y;
-}
-
-template<class Decoder>
-std::optional<IntPoint> decode(Decoder& decoder)
-{
-    IntPoint point;
-    if (!decoder.decode(point.m_x))
-        return std::nullopt;
-    if (!decoder.decode(point.m_y))
-        return std::nullopt;
-    return point;
-}
+    template<class Encoder> void encode(Encoder&) const;
+    template<class Decoder> static std::optional<IntPoint> decode(Decoder&);
 
 private:
     int m_x, m_y;
@@ -224,6 +210,24 @@ inline int IntPoint::distanceSquaredToPoint(const IntPoint& point) const
 }
 
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const IntPoint&);
+
+template<class Encoder>
+void IntPoint::encode(Encoder& encoder) const
+{
+    encoder << m_x << m_y;
+}
+
+template<class Decoder>
+std::optional<IntPoint> IntPoint::decode(Decoder& decoder)
+{
+    IntPoint point;
+    if (!decoder.decode(point.m_x))
+        return std::nullopt;
+    if (!decoder.decode(point.m_y))
+        return std::nullopt;
+    return point;
+}
+
 
 } // namespace WebCore
 

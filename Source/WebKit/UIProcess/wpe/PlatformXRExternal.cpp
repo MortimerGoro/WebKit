@@ -24,14 +24,11 @@
 #include "XRHardwareBuffer.h"
 #include <WebCore/TransformationMatrix.h>
 
+#include <dlfcn.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/Optional.h>
 #include <wtf/Scope.h>
 #include <wtf/threads/BinarySemaphore.h>
-
-#include <android/log.h>
-#define XR_LOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, "PlatformXR::PlatformXRExternal", __VA_ARGS__)
-#define XR_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "PlatformXR::PlatformXRExternal", __VA_ARGS__)
 
 using namespace WebCore;
 using namespace PlatformXR;
@@ -88,14 +85,40 @@ static Device::FrameData::Projection toProjection(const VRFieldOfView& fov)
 
 std::unique_ptr<PlatformXRExternal> PlatformXRExternal::create()
 {
-    return nullptr;
+    ALOGV("PlatformXRExternal create");
+    JNIEnv* jniEnv = *reinterpret_cast<JNIEnv**>(dlsym(RTLD_DEFAULT, "s_BrowserGlue_env"));
+    if (!jniEnv)
+        return nullptr;
+    ALOGV("PlatformXRExternal JNI: %p", jniEnv);
+
+    PlatformXR::VRExternalShmem* shmem;
+    {
+        jclass jClass = jniEnv->FindClass("com/wpe/wpe/VRManager");
+        ALOGV("  jClass for com/wpe/wpe/VRManager %p", jClass);
+        if (!jClass)
+            return nullptr;
+        jmethodID jMethodID = jniEnv->GetStaticMethodID(jClass, "getExternalContext", "()J");
+        ALOGV("  jMethodID for getExternalContext %p", jMethodID);
+
+        shmem = reinterpret_cast<PlatformXR::VRExternalShmem*>(jniEnv->CallStaticLongMethod(jClass, jMethodID));
+
+        jniEnv->DeleteLocalRef(jClass);
+    }
+
+    ALOGV("VRExternalShmemt %p", shmem);
+
+    if (!shmem)
+        return nullptr;
+
+    std::unique_ptr<PlatformXRExternal> platform(new PlatformXRExternal(jniEnv, shmem, WorkQueue::create("PlatformXRExternal queue")));
+    return platform;
 }
 
 PlatformXRExternal::PlatformXRExternal(JNIEnv* env, PlatformXR::VRExternalShmem* shmem, Ref<WorkQueue>&& queue)
     : m_env(env)
     , m_shmem(shmem)
     , m_queue(WTFMove(queue))
-    , m_identifier(XRDeviceIdentifier::generate())
+    //, m_identifier(XRDeviceIdentifier::generate())
 {
 }
 
@@ -123,7 +146,7 @@ void PlatformXRExternal::getPrimaryDeviceInfo(DeviceInfoCallback&& callback)
 void PlatformXRExternal::startSession(WebPageProxy&, OnSessionEndCallback&&)
 {
     m_queue.dispatch([this]() {
-        XR_LOGV("Start presenting");
+        ALOGV("Start presenting");
         m_browserState.presentationActive = true;
         m_browserState.layerState[0].type = VRLayerType::LayerType_Stereo_Immersive;
         pushState();
@@ -144,7 +167,7 @@ void PlatformXRExternal::endSessionIfExists(WebPageProxy&)
 void PlatformXRExternal::scheduleAnimationFrame(WebPageProxy&, PlatformXR::Device::RequestFrameCallback&& callback)
 {
     m_queue.dispatch([this, callback = WTFMove(callback)]() mutable {
-        XR_LOGV("Request frame. Wait for frame > %lu", m_frameId);
+        ALOGV("Request frame. Wait for frame > %lu", m_frameId);
         pullState([this]() {
             return (m_systemState.sensorState.inputFrameID > m_frameId) || m_systemState.displayState.suppressFrames ||
                 !m_systemState.displayState.isConnected;
@@ -155,7 +178,7 @@ void PlatformXRExternal::scheduleAnimationFrame(WebPageProxy&, PlatformXR::Devic
         Device::FrameData frameData;
         frameData.shouldRender = display.isConnected && !display.suppressFrames;
 
-        XR_LOGV("Got frame %lu. ShouldRender: %d", m_frameId, (int) frameData.shouldRender);
+        ALOGV("Got frame %lu. ShouldRender: %d", m_frameId, (int) frameData.shouldRender);
 
         if (frameData.shouldRender) {
             auto& sensor = m_systemState.sensorState;
@@ -269,7 +292,7 @@ void PlatformXRExternal::scheduleAnimationFrame(WebPageProxy&, PlatformXR::Devic
 void PlatformXRExternal::submitFrame(WebPageProxy&, Vector<PlatformXR::Device::Layer>&& layers)
 {
     m_queue.dispatch([this, layers = WTFMove(layers)]() mutable {
-        XR_LOGV("Submit frame: %lu", m_frameId);
+        ALOGV("Submit frame: %lu", m_frameId);
         int index = 0;
         for (auto& layer : layers) {
             if (index >= PlatformXR::kVRLayerMaxCount)
@@ -277,7 +300,7 @@ void PlatformXRExternal::submitFrame(WebPageProxy&, Vector<PlatformXR::Device::L
 
             auto it = m_layers.find(layer.handle);
             if (it == m_layers.end()) {
-                XR_LOGE("Didn't find a Layer with %d handle", layer.handle);
+                ALOGE("Didn't find a Layer with %d handle", layer.handle);
                 continue;
             }
 
@@ -302,7 +325,7 @@ std::optional<LayerHandle> PlatformXRExternal::createLayerProjection(WebPageProx
     std::optional<LayerHandle> handle;
 
     BinarySemaphore semaphore;
-    m_queue.dispatch([this, protectedThis = makeRef(*this), width, height, alpha, &handle, &semaphore]() mutable {
+    m_queue.dispatch([this, width, height, alpha, &handle, &semaphore]() mutable {
         auto signalOnExit = makeScopeExit([&semaphore]() {
             semaphore.signal();
         });
@@ -315,14 +338,14 @@ std::optional<LayerHandle> PlatformXRExternal::createLayerProjection(WebPageProx
     });
     semaphore.wait();
 
-    XR_LOGV("createLayerProjection: %d", handle.value_or(0));
+    ALOGV("createLayerProjection: %d", handle.value_or(0));
 
     return handle;
 }
 
 void PlatformXRExternal::deleteLayer(LayerHandle handle)
 {
-    m_queue.dispatch([this]() mutable {
+    m_queue.dispatch([this, handle]() mutable {
         m_layers.remove(handle);
     });
 }

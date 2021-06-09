@@ -87,12 +87,15 @@ void PlatformXRSystemProxy::requestFrame(PlatformXR::Device::RequestFrameCallbac
 
 std::optional<PlatformXR::LayerHandle> PlatformXRSystemProxy::createLayerProjection(uint32_t width, uint32_t height, bool alpha)
 {
-    return m_page.sendSyncWithDelayedReply()
+    std::optional<PlatformXR::LayerHandle> handle;
+    if (!m_page.sendSyncWithDelayedReply(Messages::PlatformXRSystem::CreateLayerProjection(width, height, alpha), Messages::PlatformXRSystem::CreateLayerProjection::Reply(handle), IPC::SendSyncOption::MaintainOrderingWithAsyncMessages))
+        return std::nullopt;
+    return handle;
 }
 
 void PlatformXRSystemProxy::submitFrame(Vector<PlatformXR::Device::Layer>&& layers)
 {
-    m_page.send(Messages::PlatformXRSystem::SubmitFrame());
+    m_page.send(Messages::PlatformXRSystem::SubmitFrame(WTFMove(layers)));
 }
 
 void PlatformXRSystemProxy::sessionDidEnd(XRDeviceIdentifier deviceIdentifier)

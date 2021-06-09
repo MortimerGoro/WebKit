@@ -170,25 +170,11 @@ public:
     operator D2D1_SIZE_F() const;
 #endif
 
-    template<class Encoder>
-    void encode(Encoder& encoder) const
-    {
-        encoder << m_width << m_height;
-    }
-
-    template<class Decoder>
-    std::optional<IntSize> decode(Decoder& decoder)
-    {
-        IntSize size;
-        if (!decoder.decode(size.m_width))
-            return std::nullopt;
-        if (!decoder.decode(size.m_height))
-            return std::nullopt;
-        return size;
-    }
-
     String toJSONString() const;
     Ref<JSON::Object> toJSONObject() const;
+
+    template<class Encoder> void encode(Encoder&) const;
+    template<class Decoder> static std::optional<IntSize> decode(Decoder&);
 
 private:
     int m_width, m_height;
@@ -234,6 +220,23 @@ inline bool operator!=(const IntSize& a, const IntSize& b)
 }
 
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const IntSize&);
+
+template<class Encoder>
+void IntSize::encode(Encoder& encoder) const
+{
+    encoder << m_width << m_height;
+}
+
+template<class Decoder>
+std::optional<IntSize> IntSize::decode(Decoder& decoder)
+{
+    IntSize size;
+    if (!decoder.decode(size.m_width))
+        return std::nullopt;
+    if (!decoder.decode(size.m_height))
+        return std::nullopt;
+    return size;
+}
 
 } // namespace WebCore
 
