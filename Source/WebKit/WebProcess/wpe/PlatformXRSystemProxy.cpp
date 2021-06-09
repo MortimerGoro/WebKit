@@ -24,18 +24,18 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#import "config.h"
-#import "PlatformXRSystemProxy.h"
+#include "config.h"
+#include "PlatformXRSystemProxy.h"
 
 #if USE(EXTERNALXR) && ENABLE(WEBXR)
 
-#import "PlatformXRCoordinator.h"
-#import "PlatformXRSystemMessages.h"
-#import "PlatformXRSystemProxyMessages.h"
-#import "WebPage.h"
-#import "WebProcess.h"
-#import "XRDeviceInfo.h"
-#import <wtf/Vector.h>
+#include "PlatformXRCoordinator.h"
+#include "PlatformXRSystemMessages.h"
+#include "PlatformXRSystemProxyMessages.h"
+#include "WebPage.h"
+#include "WebProcess.h"
+#include "XRDeviceInfo.h"
+#include <wtf/Vector.h>
 
 using namespace PlatformXR;
 
@@ -85,12 +85,12 @@ void PlatformXRSystemProxy::requestFrame(PlatformXR::Device::RequestFrameCallbac
     m_page.sendWithAsyncReply(Messages::PlatformXRSystem::RequestFrame(), WTFMove(callback));
 }
 
-std::optional<PlatformXR::LayerHandle> PlatformXRSystemProxy::createLayerProjection(uint32_t, uint32_t, bool)
+std::optional<PlatformXR::LayerHandle> PlatformXRSystemProxy::createLayerProjection(uint32_t width, uint32_t height, bool alpha)
 {
-    return PlatformXRCoordinator::defaultLayerHandle();
+    return m_page.sendSyncWithDelayedReply()
 }
 
-void PlatformXRSystemProxy::submitFrame()
+void PlatformXRSystemProxy::submitFrame(Vector<PlatformXR::Device::Layer>&& layers)
 {
     m_page.send(Messages::PlatformXRSystem::SubmitFrame());
 }

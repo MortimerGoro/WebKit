@@ -315,5 +315,25 @@ inline bool areEssentiallyEqual(const FloatPoint& a, const FloatPoint& b)
 
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const FloatPoint&);
 
+template<class Encoder>
+void FloatPoint::encode(Encoder& encoder) const
+{
+    encoder << m_x << m_y;
 }
+
+template<class Decoder>
+std::optional<FloatPoint> FloatPoint::decode(Decoder& decoder)
+{
+    FloatPoint point;
+    if (!decoder.decode(point.m_x))
+        return std::nullopt;
+    if (!decoder.decode(point.m_y))
+        return std::nullopt;
+    return point;
+}
+
+}
+
+
+
 

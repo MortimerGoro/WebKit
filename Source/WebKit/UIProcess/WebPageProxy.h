@@ -186,7 +186,7 @@ interface ID3D11Device1;
 #include <WebCore/MediaSessionIdentifier.h>
 #endif
 
-#if ENABLE(WEBXR) && PLATFORM(COCOA)
+#if ENABLE(WEBXR)
 #include "PlatformXRSystem.h"
 #endif
 
@@ -3030,7 +3030,7 @@ private:
 
     std::optional<WebCore::PrivateClickMeasurement> m_privateClickMeasurement;
 
-#if ENABLE(WEBXR) && PLATFORM(COCOA)
+#if ENABLE(WEBXR)
     std::unique_ptr<PlatformXRSystem> m_xrSystem;
 #endif
 

@@ -224,12 +224,18 @@ public:
     struct LayerView {
         Eye eye { Eye::None };
         WebCore::IntRect viewport;
+
+        template<class Encoder> void encode(Encoder&) const;
+        template<class Decoder> static std::optional<LayerView> decode(Decoder&);
     };
 
     struct Layer {
         LayerHandle handle { 0 };
         bool visible { true };
         Vector<LayerView> views;
+
+        template<class Encoder> void encode(Encoder&) const;
+        template<class Decoder> static std::optional<Layer> decode(Decoder&);
     };
 
     struct ViewData {
@@ -495,6 +501,48 @@ std::optional<Device::FrameData> Device::FrameData::decode(Decoder& decoder)
         return std::nullopt;
 
     return frameData;
+}
+
+
+template<class Encoder>
+void Device::LayerView::encode(Encoder& encoder) const
+{
+    encoder << eye;
+    encoder << viewport;
+}
+
+template<class Decoder>
+std::optional<Device::LayerView> Device::LayerView::decode(Decoder& decoder)
+{
+    PlatformXR::Device::LayerView view;
+    if (!decoder.decode(view.eye))
+        return std::nullopt;
+    if (!decoder.decode(view.viewport))
+        return std::nullopt;
+
+    return view;
+}
+
+template<class Encoder>
+void Device::Layer::encode(Encoder& encoder) const
+{
+    encoder << handle;
+    encoder << visible;
+    encoder << views;
+}
+
+template<class Decoder>
+std::optional<Device::Layer> Device::Layer::decode(Decoder& decoder)
+{
+    PlatformXR::Device::Layer layer;
+    if (!decoder.decode(layer.handle))
+        return std::nullopt;
+    if (!decoder.decode(layer.visible))
+        return std::nullopt;
+    if (!decoder.decode(layer.views))
+        return std::nullopt;
+
+    return layer;
 }
 
 inline Device::FrameData Device::FrameData::copy() const

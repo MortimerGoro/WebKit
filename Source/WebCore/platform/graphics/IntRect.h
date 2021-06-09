@@ -217,6 +217,24 @@ public:
     WEBCORE_EXPORT operator NSRect() const;
 #endif
 
+template<class Encoder>
+void encode(Encoder& encoder) const
+{
+    encoder << m_location << m_size;
+}
+
+template<class Decoder>
+std::optional<IntRect> decode(Decoder& decoder)
+{
+    IntRect rect;
+    if (!decoder.decode(rect.m_location))
+        return std::nullopt;
+    if (!decoder.decode(rect.m_size))
+        return std::nullopt;
+
+    return rect;
+}
+
 private:
     IntPoint m_location;
     IntSize m_size;

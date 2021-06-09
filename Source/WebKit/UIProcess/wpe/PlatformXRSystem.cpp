@@ -99,10 +99,19 @@ void PlatformXRSystem::requestFrame(CompletionHandler<void(PlatformXR::Device::F
         xrCoordinator->scheduleAnimationFrame(m_page, WTFMove(completionHandler));
 }
 
-void PlatformXRSystem::submitFrame()
+void PlatformXRSystem::submitFrame(Vector<PlatformXR::Device::Layer>&& layers)
 {
     if (auto* xrCoordinator = PlatformXRSystem::xrCoordinator())
-        xrCoordinator->submitFrame(m_page);
+        xrCoordinator->submitFrame(m_page, WTFMove(layers));
+}
+
+void createLayerProjection(uint32_t width, uint32_t height, bool alpha, CompletionHandler<void(std::optional<int>)>&& completionHandler)
+{
+    std::optional<int> handle;
+    if (auto* xrCoordinator = PlatformXRSystem::xrCoordinator())
+        handle = xrCoordinator->createLayerProjection(m_page, uint32_t width, uint32_t height, bool alpha);
+
+    completionHandler(handle);
 }
 
 }

@@ -54,7 +54,10 @@ public:
 
     // Session display loop.
     virtual void scheduleAnimationFrame(WebPageProxy&, PlatformXR::Device::RequestFrameCallback&&) = 0;
-    virtual void submitFrame(WebPageProxy&) { }
+    virtual void submitFrame(WebPageProxy&, Vector<PlatformXR::Device::Layer>&&) { }
+
+    // Layers
+    virtual std::optional<PlatformXR::LayerHandle> createLayerProjection(WebPageProxy&, uint32_t width, uint32_t height, bool alpha) = 0;
 };
 
 } // namespace WebKit

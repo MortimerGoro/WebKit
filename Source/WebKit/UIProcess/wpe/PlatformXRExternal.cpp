@@ -22,7 +22,7 @@
 #if ENABLE(WEBXR) && USE(EXTERNALXR)
 #include "PlatformXRExternal.h"
 #include "XRHardwareBuffer.h"
-#include "TransformationMatrix.h"
+#include <WebCore/TransformationMatrix.h>
 
 #include <wtf/NeverDestroyed.h>
 #include <wtf/Optional.h>
@@ -30,12 +30,13 @@
 #include <wtf/threads/BinarySemaphore.h>
 
 #include <android/log.h>
-#define XR_LOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, "PlatformXR::ExternalDevice", __VA_ARGS__)
-#define XR_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "PlatformXR::ExternalDevice", __VA_ARGS__)
+#define XR_LOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, "PlatformXR::PlatformXRExternal", __VA_ARGS__)
+#define XR_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, "PlatformXR::PlatformXRExternal", __VA_ARGS__)
 
 using namespace WebCore;
+using namespace PlatformXR;
 
-namespace PlatformXR {
+namespace WebKit {
 
 static Device::FrameData::Pose toPose(const VRPose& p)
 {
@@ -85,65 +86,43 @@ static Device::FrameData::Projection toProjection(const VRFieldOfView& fov)
     return Device::FrameData::Fov { convert(fov.upDegrees), convert(fov.downDegrees), convert(fov.leftDegrees), convert(fov.rightDegrees) };
 }
 
-Ref<ExternalDevice> ExternalDevice::create(JNIEnv* env, Ref<WorkQueue>&& queue, CompletionHandler<void()>&& callback)
+std::unique_ptr<PlatformXRExternal> PlatformXRExternal::create()
 {
-    auto device = adoptRef(*new ExternalDevice(env, WTFMove(queue)));
-    device->initialize(WTFMove(callback));
-    return device;
+    return nullptr;
 }
 
-ExternalDevice::ExternalDevice(JNIEnv* env, Ref<WorkQueue>&& queue)
+PlatformXRExternal::PlatformXRExternal(JNIEnv* env, PlatformXR::VRExternalShmem* shmem, Ref<WorkQueue>&& queue)
     : m_env(env)
+    , m_shmem(shmem)
     , m_queue(WTFMove(queue))
+    , m_identifier(XRDeviceIdentifier::generate())
 {
 }
 
-void ExternalDevice::initialize(CompletionHandler<void()>&& callback)
+void PlatformXRExternal::getPrimaryDeviceInfo(DeviceInfoCallback&& callback)
 {
     ASSERT(isMainThread());
-    m_queue.dispatch([this, protectedThis = makeRef(*this), callback = WTFMove(callback)]() mutable {
+    m_queue.dispatch([this, callback = WTFMove(callback)]() mutable {
         // Wait until the external shmem has valid data.
         pullState([this](){
             return m_enumerationCompleted;
         });
 
-        callOnMainThread(WTFMove(callback));
+        XRDeviceInfo info;
+        info.identifier = m_identifier;
+        info.supportsOrientationTracking = true;
+        info.supportsStereoRendering = true;
+        info.recommendedResolution = {
+            2 * m_systemState.displayState.eyeResolution.width, m_systemState.displayState.eyeResolution.height
+        };
+
+        callback(info);
     });
 }
 
-WebCore::IntSize ExternalDevice::recommendedResolution(SessionMode mode)
+void PlatformXRExternal::startSession(WebPageProxy&, OnSessionEndCallback&&)
 {
-    if (!m_shmem)
-        return { 0, 0 };
-
-    int multiplier = mode == SessionMode::ImmersiveVr ? 2 : 1;
-
-    return { multiplier * m_systemState.displayState.eyeResolution.width, m_systemState.displayState.eyeResolution.height };
-}
-
-void ExternalDevice::initializeTrackingAndRendering(SessionMode)
-{
-    m_queue.dispatch([this, protectedThis = makeRef(*this)]() {
-        m_egl = GLContextEGL::createSharingContext(PlatformDisplay::sharedDisplay());
-        if (!m_egl) {
-            XR_LOGE("Failed to create EGL context");
-            return;
-        }
-
-        auto& context = static_cast<GLContext&>(*m_egl);
-        context.makeContextCurrent();
-
-        GraphicsContextGLAttributes attributes;
-        attributes.depth = false;
-        attributes.stencil = false;
-        attributes.antialias = false;
-
-        m_gl = GraphicsContextGL::create(attributes, nullptr);
-        if (!m_gl) {
-            XR_LOGE("Failed to create a valid GraphicsContextGL");
-            return;
-        }
-
+    m_queue.dispatch([this]() {
         XR_LOGV("Start presenting");
         m_browserState.presentationActive = true;
         m_browserState.layerState[0].type = VRLayerType::LayerType_Stereo_Immersive;
@@ -153,26 +132,18 @@ void ExternalDevice::initializeTrackingAndRendering(SessionMode)
     });
 }
 
-void ExternalDevice::shutDownTrackingAndRendering()
+void PlatformXRExternal::endSessionIfExists(WebPageProxy&)
 {
-    m_queue.dispatch([this, protectedThis = makeRef(*this)]() {
+    m_queue.dispatch([this]() {
         m_browserState.presentationActive = false;
         memset(m_browserState.layerState, 0, sizeof(VRLayerState) * PlatformXR::kVRLayerMaxCount);
         pushState(true);
-    
-        // deallocate graphic resources
-        m_gl = nullptr;
-        m_egl.reset();
     });
 }
 
-void ExternalDevice::initializeReferenceSpace(PlatformXR::ReferenceSpaceType)
+void PlatformXRExternal::scheduleAnimationFrame(WebPageProxy&, PlatformXR::Device::RequestFrameCallback&& callback)
 {
-}
-
-void ExternalDevice::requestFrame(RequestFrameCallback&& callback)
-{
-    m_queue.dispatch([this, protectedThis = makeRef(*this), callback = WTFMove(callback)]() mutable {
+    m_queue.dispatch([this, callback = WTFMove(callback)]() mutable {
         XR_LOGV("Request frame. Wait for frame > %lu", m_frameId);
         pullState([this]() {
             return (m_systemState.sensorState.inputFrameID > m_frameId) || m_systemState.displayState.suppressFrames ||
@@ -211,16 +182,15 @@ void ExternalDevice::requestFrame(RequestFrameCallback&& callback)
             frameData.origin = toPose(sensor.pose);
 
             // Views: Projection matrix and eye offset
-            FrameData::View leftView;
+            Device::FrameData::View leftView;
             leftView.projection = toProjection(display.eyeFOV[0]);
             leftView.offset = toPose(display.eyeTranslation[0]);
 
-            FrameData::View rightView;
+            Device::FrameData::View rightView;
             rightView.projection = toProjection(display.eyeFOV[1]);
             rightView.offset = toPose(display.eyeTranslation[1]);
 
             frameData.views = { leftView, rightView };
-
 
             // Stage parameters
             if (supportsFlag(VRDisplayCapabilityFlags::Cap_StageParameters)) {
@@ -243,7 +213,7 @@ void ExternalDevice::requestFrame(RequestFrameCallback&& callback)
                 if (!controller.connected)
                     continue;
 
-                FrameData::InputSource source;
+                Device::FrameData::InputSource source;
                 source.handeness = controller.hand == ControllerHand::Left ? XRHandedness::Left : XRHandedness::Right;
                 source.handle = i;
                 // TODO: Get from external
@@ -276,7 +246,7 @@ void ExternalDevice::requestFrame(RequestFrameCallback&& callback)
 
                 // Buttons
                 for (uint32_t i = 0; i < controller.numButtons; ++i) {
-                    FrameData::InputSourceButton button;
+                    Device::FrameData::InputSourceButton button;
                     button.pressed = (controller.buttonPressed & (1 << i)) != 0;
                     button.touched = (controller.buttonTouched & (1 << i)) != 0;
                     button.pressedValue = controller.triggerValue[i];
@@ -292,15 +262,13 @@ void ExternalDevice::requestFrame(RequestFrameCallback&& callback)
 
         }
 
-        callOnMainThread([frameData = WTFMove(frameData), callback = WTFMove(callback)]() mutable {
-            callback(WTFMove(frameData));
-        });
+        callback(WTFMove(frameData));
     });
 }
 
-void ExternalDevice::submitFrame(Vector<Device::Layer>&& layers)
+void PlatformXRExternal::submitFrame(WebPageProxy&, Vector<PlatformXR::Device::Layer>&& layers)
 {
-    m_queue.dispatch([this, protectedThis = makeRef(*this), layers = WTFMove(layers)]() mutable {
+    m_queue.dispatch([this, layers = WTFMove(layers)]() mutable {
         XR_LOGV("Submit frame: %lu", m_frameId);
         int index = 0;
         for (auto& layer : layers) {
@@ -329,18 +297,7 @@ void ExternalDevice::submitFrame(Vector<Device::Layer>&& layers)
     });
 }
 
-Vector<Device::ViewData> ExternalDevice::views(SessionMode mode) const
-{
-    Vector<Device::ViewData> views;
-    if (mode == SessionMode::ImmersiveVr) {
-        views.append({ .active = true, .eye = Eye::Left });
-        views.append({ .active = true, .eye = Eye::Right });
-    } else
-        views.append({ .active = true, .eye = Eye::None });
-    return views;
-}
-
-std::optional<LayerHandle> ExternalDevice::createLayerProjection(uint32_t width, uint32_t height, bool alpha)
+std::optional<LayerHandle> PlatformXRExternal::createLayerProjection(WebPageProxy&, uint32_t width, uint32_t height, bool alpha)
 {
     std::optional<LayerHandle> handle;
 
@@ -350,10 +307,7 @@ std::optional<LayerHandle> ExternalDevice::createLayerProjection(uint32_t width,
             semaphore.signal();
         });
 
-        if (!m_gl || !m_egl)
-            return;
-
-        if (auto buffer = XRHardwareBuffer::create(m_env, *m_egl, *m_gl, width, height, alpha)) {
+        if (auto buffer = XRHardwareBuffer::create(m_env, width, height, alpha)) {
             LayerHandle newHandle = ++m_layerIndex;
             m_layers.add(newHandle, WTFMove(buffer));
             handle = newHandle;
@@ -366,12 +320,14 @@ std::optional<LayerHandle> ExternalDevice::createLayerProjection(uint32_t width,
     return handle;
 }
 
-void ExternalDevice::deleteLayer(LayerHandle handle)
+void PlatformXRExternal::deleteLayer(LayerHandle handle)
 {
-    m_layers.remove(handle);
+    m_queue.dispatch([this]() mutable {
+        m_layers.remove(handle);
+    });
 }
 
-void ExternalDevice::pushState(bool notifyCond)
+void PlatformXRExternal::pushState(bool notifyCond)
 {
     ASSERT(&RunLoop::current() == &m_queue.runLoop());
     if (!m_shmem)
@@ -385,7 +341,7 @@ void ExternalDevice::pushState(bool notifyCond)
     }
 }
 
-void ExternalDevice::pullState(const std::function<bool()>& waitCondition)
+void PlatformXRExternal::pullState(const std::function<bool()>& waitCondition)
 {
     ASSERT(&RunLoop::current() == &m_queue.runLoop());
     if (!m_shmem)
@@ -413,6 +369,6 @@ void ExternalDevice::pullState(const std::function<bool()>& waitCondition)
     } // while (!done) {
 }
 
-} // namespace PlatformXR
+} // namespace WebKit
 
 #endif // ENABLE(WEBXR) && USE(EXTERNALXR)

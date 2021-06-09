@@ -205,6 +205,25 @@ inline float FloatPoint3D::distanceTo(const FloatPoint3D& a) const
 
 WEBCORE_EXPORT WTF::TextStream& operator<<(WTF::TextStream&, const FloatPoint3D&);
 
+template<class Encoder>
+void FloatPoint3D::encode(Encoder& encoder) const
+{
+    encoder << m_x << m_y << m_z;
+}
+
+template<class Decoder>
+std::optional<FloatPoint3D> FloatPoint3D::decode(Decoder& decoder)
+{
+    FloatPoint3D point;
+    if (!decoder.decode(point.m_x))
+        return std::nullopt;
+    if (!decoder.decode(point.m_y))
+        return std::nullopt;
+    if (!decoder.decode(point.m_z))
+        return std::nullopt;
+    return point;
+}
+
 } // namespace WebCore
 
 #endif // FloatPoint3D_h

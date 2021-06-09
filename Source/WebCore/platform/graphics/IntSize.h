@@ -170,6 +170,23 @@ public:
     operator D2D1_SIZE_F() const;
 #endif
 
+    template<class Encoder>
+    void encode(Encoder& encoder) const
+    {
+        encoder << m_width << m_height;
+    }
+
+    template<class Decoder>
+    std::optional<IntSize> decode(Decoder& decoder)
+    {
+        IntSize size;
+        if (!decoder.decode(size.m_width))
+            return std::nullopt;
+        if (!decoder.decode(size.m_height))
+            return std::nullopt;
+        return size;
+    }
+
     String toJSONString() const;
     Ref<JSON::Object> toJSONObject() const;
 

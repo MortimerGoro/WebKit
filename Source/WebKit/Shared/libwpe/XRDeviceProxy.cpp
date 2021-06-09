@@ -76,10 +76,10 @@ Vector<PlatformXR::Device::ViewData> XRDeviceProxy::views(SessionMode mode) cons
 {
     Vector<Device::ViewData> views;
     if (m_supportsStereoRendering && mode == SessionMode::ImmersiveVr) {
-        views.append({ .active = true, Eye::Left });
-        views.append({ .active = true, Eye::Right });
+        views.append({ .active = true, .eye = Eye::Left });
+        views.append({ .active = true, .eye = Eye::Right });
     } else
-        views.append({ .active = true, Eye::None });
+        views.append({ .active = true, .eye = Eye::None });
     return views;
 }
 
@@ -94,10 +94,10 @@ std::optional<PlatformXR::LayerHandle> XRDeviceProxy::createLayerProjection(uint
     return m_xrSystem ? m_xrSystem->createLayerProjection(width, height, alpha) : std::nullopt;
 }
 
-void XRDeviceProxy::submitFrame(Vector<PlatformXR::Device::Layer>&&)
+void XRDeviceProxy::submitFrame(Vector<PlatformXR::Device::Layer>&& layers)
 {
     if (m_xrSystem)
-        m_xrSystem->submitFrame();
+        m_xrSystem->submitFrame(WTFMove(layers));
 }
 
 } // namespace WebKit

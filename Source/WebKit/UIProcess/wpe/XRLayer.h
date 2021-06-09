@@ -23,12 +23,16 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-messages -> PlatformXRSystem NotRefCounted {
-    EnumerateImmersiveXRDevices() -> (Vector<WebKit::XRDeviceInfo> devicesInfos) Async
-    InitializeTrackingAndRendering()
-    ShutDownTrackingAndRendering()
-    RequestFrame() -> (struct PlatformXR::Device::FrameData frameData) Async
-    CreateLayerProjection(uint32_t width, uint32_t height, bool alpha) -> (std::optional<int> result) Synchronous
-    SubmitFrame(Vector<WebKit::XRLayer> layers)
+#pragma once
+
+#if ENABLE(WEBXR) && USE(EXTERNALXR)
+
+#include <WebCore/PlatformXR.h>
+
+namespace WebKit {
+
+using XRLayer = PlatformXR::Device::Layer;
+
 }
 
+#endif // ENABLE(WEBXR)

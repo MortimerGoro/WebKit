@@ -56,7 +56,8 @@ private:
     void initializeTrackingAndRendering();
     void shutDownTrackingAndRendering();
     void requestFrame(CompletionHandler<void(PlatformXR::Device::FrameData&&)>&&);
-    void submitFrame();
+    void submitFrame(Vector<PlatformXR::Device::Layer>&&);
+    void createLayerProjection(uint32_t width, uint32_t height, bool alpha, CompletionHandler<void(std::optional<int>)>&& completionHandler);
 
     WebPageProxy& m_page;
 };

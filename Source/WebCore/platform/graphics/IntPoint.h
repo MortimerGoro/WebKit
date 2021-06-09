@@ -145,6 +145,23 @@ public:
     operator D2D1_POINT_2U() const;
 #endif
 
+template<class Encoder>
+void encode(Encoder& encoder) const
+{
+    encoder << m_x << m_y;
+}
+
+template<class Decoder>
+std::optional<IntPoint> decode(Decoder& decoder)
+{
+    IntPoint point;
+    if (!decoder.decode(point.m_x))
+        return std::nullopt;
+    if (!decoder.decode(point.m_y))
+        return std::nullopt;
+    return point;
+}
+
 private:
     int m_x, m_y;
 };

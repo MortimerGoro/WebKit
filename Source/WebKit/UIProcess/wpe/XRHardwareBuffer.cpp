@@ -34,8 +34,7 @@ using namespace WebCore;
 
 namespace PlatformXR {
 
-
-std::unique_ptr<XRHardwareBuffer> XRHardwareBuffer::create(JNIEnv* env, WebCore::GLContextEGL& egl, WebCore::GraphicsContextGL& gl, uint32_t width, uint32_t height, bool alpha)
+std::unique_ptr<XRHardwareBuffer> XRHardwareBuffer::create(JNIEnv* env, uint32_t width, uint32_t height, bool alpha)
 {
     auto buffer = std::unique_ptr<XRHardwareBuffer>(new XRHardwareBuffer(env, egl, gl, width, height, alpha));
     if (!buffer->initialize())
@@ -44,7 +43,7 @@ std::unique_ptr<XRHardwareBuffer> XRHardwareBuffer::create(JNIEnv* env, WebCore:
     return buffer;
 }
 
-XRHardwareBuffer::XRHardwareBuffer(JNIEnv* env, WebCore::GLContextEGL& egl, WebCore::GraphicsContextGL& gl, uint32_t width, uint32_t height, bool alpha)
+XRHardwareBuffer::XRHardwareBuffer(JNIEnv* env, uint32_t width, uint32_t height, bool alpha)
     : m_env(env)
     , m_egl(egl)
     , m_gl(gl)
@@ -56,15 +55,8 @@ XRHardwareBuffer::XRHardwareBuffer(JNIEnv* env, WebCore::GLContextEGL& egl, WebC
 
 XRHardwareBuffer::~XRHardwareBuffer()
 {
-    for (auto& buffer: m_pool) {
-        if (buffer.texture)
-            m_gl.deleteTexture(buffer.texture);
-        if (buffer.image != EGL_NO_IMAGE_KHR)
-            m_eglExt.destroyImageKHR(PlatformDisplay::sharedDisplay().eglDisplay(), buffer.image);
-        if (buffer.hardwareBuffer)
-            AHardwareBuffer_release(buffer.hardwareBuffer);
-        if (buffer.javaObject)
-            m_env->DeleteGlobalRef(buffer.javaObject);
+    for (auto buffer: m_pool) {
+        AHardwareBuffer_release(buffer);
     }
 
     m_pool.clear();
@@ -72,14 +64,6 @@ XRHardwareBuffer::~XRHardwareBuffer()
 
 bool XRHardwareBuffer::initialize()
 {
-    m_eglExt.getNativeClientBufferANDROID = reinterpret_cast<PFNEGLGETNATIVECLIENTBUFFERANDROIDPROC>(eglGetProcAddress("eglGetNativeClientBufferANDROID"));
-    m_eglExt.createImageKHR = reinterpret_cast<PFNEGLCREATEIMAGEKHRPROC>(eglGetProcAddress("eglCreateImageKHR"));
-    m_eglExt.destroyImageKHR = reinterpret_cast<PFNEGLDESTROYIMAGEKHRPROC>(eglGetProcAddress("eglDestroyImageKHR"));
-    m_eglExt.imageTargetTexture2DOES = reinterpret_cast<PFNGLEGLIMAGETARGETTEXTURE2DOESPROC>(eglGetProcAddress("glEGLImageTargetTexture2DOES"));
-
-    if (!m_eglExt.isValid())
-        return false;
-
     AHardwareBuffer_Desc desc { };
     desc.width = m_width;
     desc.height = m_height;
@@ -87,27 +71,13 @@ bool XRHardwareBuffer::initialize()
     desc.layers = 1;
     desc.usage = AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE | AHARDWAREBUFFER_USAGE_GPU_FRAMEBUFFER;
     for (uint32_t i = 0; i < poolSize; ++i) {
-        Buffer buffer { };
+        AHardwareBuffer* buffer { nullptr };
         
-        AHardwareBuffer_allocate(&desc, &buffer.hardwareBuffer);
-        if (!buffer.hardwareBuffer)
+        AHardwareBuffer_allocate(&desc, &buffer);
+        if (!buffer)
             return false;
 
-        buffer.clientBuffer = m_eglExt.getNativeClientBufferANDROID(buffer.hardwareBuffer);
-        if (!buffer.clientBuffer)
-            return false;
-
-        buffer.image = m_eglExt.createImageKHR(PlatformDisplay::sharedDisplay().eglDisplay(), EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID, buffer.clientBuffer, nullptr);
-        if (buffer.image == EGL_NO_IMAGE_KHR)
-            return false;
-
-        buffer.texture = m_gl.createTexture();
-        m_gl.bindTexture(GL_TEXTURE_2D, buffer.texture);
-        m_eglExt.imageTargetTexture2DOES(GL_TEXTURE_2D, buffer.image);
-
-        buffer.javaObject = m_env->NewGlobalRef(AHardwareBuffer_toHardwareBuffer(m_env, buffer.hardwareBuffer));
-
-        m_pool.append(WTFMove(buffer));
+        m_pool.append(buffer);
     }
 
 

@@ -47,7 +47,7 @@ public:
     void shutDownTrackingAndRendering();
     void requestFrame(PlatformXR::Device::RequestFrameCallback&&);
     std::optional<PlatformXR::LayerHandle> createLayerProjection(uint32_t, uint32_t, bool);
-    void submitFrame();
+    void submitFrame(Vector<PlatformXR::Device::Layer>&&);
 
 private:
     RefPtr<XRDeviceProxy> deviceByIdentifier(XRDeviceIdentifier);
