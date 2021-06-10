@@ -33,7 +33,9 @@ public:
     ~XRHardwareBuffer();
 
     PlatformXR::Device::FrameData::LayerData startFrame();
-    void endFrame();
+    AHardwareBuffer* endFrame();
+    uint32_t width() const { return m_width; }
+    uint32_t height() const { return m_height; }
 
 private:
     XRHardwareBuffer(JNIEnv*, uint32_t width, uint32_t height, bool alpha);
@@ -46,6 +48,7 @@ private:
     Vector<AHardwareBuffer*> m_pool;
     int m_poolIndex { 0 };
     bool m_frameStarted { false };
+    uint64_t m_frameCount { 0 };
 };
 
 } // namespace WebKit

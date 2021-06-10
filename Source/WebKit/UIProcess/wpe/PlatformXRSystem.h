@@ -27,6 +27,7 @@
 
 #if ENABLE(WEBXR) && USE(EXTERNALXR)
 
+#include "WebCoreArgumentCoders.h"
 #include "MessageReceiver.h"
 #include "PlatformXRSystemMessages.h"
 #include <WebCore/PlatformXR.h>
@@ -34,6 +35,7 @@
 namespace WebKit {
 
 class PlatformXRCoordinator;
+class PlatformXRExternal;
 class WebPageProxy;
 
 struct XRDeviceInfo;
@@ -47,7 +49,7 @@ public:
     void invalidate();
 
 private:
-    static PlatformXRCoordinator* xrCoordinator();
+    PlatformXRCoordinator* xrCoordinator();
 
     // IPC::MessageReceiver
     void didReceiveMessage(IPC::Connection&, IPC::Decoder&) final;
@@ -62,6 +64,7 @@ private:
     void createLayerProjection(uint32_t width, uint32_t height, bool alpha, Messages::PlatformXRSystem::CreateLayerProjection::DelayedReply&& reply);
 
     WebPageProxy& m_page;
+    std::unique_ptr<PlatformXRExternal> m_external;
 };
 
 } // namespace WebKit

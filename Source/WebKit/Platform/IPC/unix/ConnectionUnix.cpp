@@ -40,6 +40,8 @@
 #include <wtf/StdLibExtras.h>
 #include <wtf/UniStdExtras.h>
 
+#include <android/hardware_buffer.h>
+
 #if USE(GLIB)
 #include <gio/gio.h>
 #endif
@@ -206,6 +208,20 @@ bool Connection::processMessage()
                 fd = m_fileDescriptors[fdIndex++];
             attachments[attachmentCount - i - 1] = Attachment(fd);
             break;
+        case Attachment::HardwareBufferType:
+        {
+            AHardwareBuffer* hardwareBuffer = nullptr;
+            while (true) {
+                ALOGV("AHardwareBuffer_recvHandleFromUnixSocket start");
+                auto ret = AHardwareBuffer_recvHandleFromUnixSocket(m_socketDescriptor, &hardwareBuffer);
+                ALOGV("AHardwareBuffer_recvHandleFromUnixSocket ret: %d", ret);
+                if (!ret || ret != -EAGAIN)
+                    break;
+            }
+            ALOGV("AHardwareBuffer_recvHandleFromUnixSocket done: %p", hardwareBuffer);
+            attachments[attachmentCount - i - 1] = Attachment(hardwareBuffer);
+            break;
+        }
         case Attachment::Uninitialized:
             attachments[attachmentCount - i - 1] = Attachment();
         default:
@@ -475,6 +491,7 @@ bool Connection::sendOutputMessage(UnixMessage& outputMessage)
     MallocPtr<char> attachmentFDBuffer;
 
     auto& attachments = outputMessage.attachments();
+    AHardwareBuffer* hardwareBuffer { nullptr };
     if (!attachments.isEmpty()) {
         int* fdPtr = 0;
 
@@ -513,6 +530,9 @@ bool Connection::sendOutputMessage(UnixMessage& outputMessage)
                     fdPtr[fdIndex++] = attachments[i].fileDescriptor();
                 } else
                     attachmentInfo[i].setNull();
+                break;
+            case Attachment::HardwareBufferType:
+                hardwareBuffer = attachments[i].hardwareBuffer();
                 break;
             case Attachment::Uninitialized:
             default:
@@ -581,6 +601,19 @@ bool Connection::sendOutputMessage(UnixMessage& outputMessage)
             WTFLogAlways("Error sending IPC message: %s", strerror(errno));
         return false;
     }
+
+
+    if (hardwareBuffer) {
+        while (true) {
+            ALOGV("AHardwareBuffer_sendHandleToUnixSocket start: %p", hardwareBuffer);
+            int ret = AHardwareBuffer_sendHandleToUnixSocket(hardwareBuffer, m_socketDescriptor);
+            ALOGV("AHardwareBuffer_sendHandleToUnixSocket ret: %d", ret);
+            if (!ret || ret != -EAGAIN)
+                break;
+        }
+        ALOGV("AHardwareBuffer_sendHandleToUnixSocket done: %p", hardwareBuffer);
+    }
+
     return true;
 }
 

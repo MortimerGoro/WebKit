@@ -34,6 +34,9 @@
 #include "WebXRSession.h"
 #include <wtf/IsoMallocInlines.h>
 
+#include <android/log.h>
+#define ALOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, "WPEDebug", __VA_ARGS__)
+
 namespace WebCore {
 
 static constexpr double DefaultUserHeightInMeters = 1.65;
@@ -97,15 +100,24 @@ TransformationMatrix WebXRReferenceSpace::nativeOrigin() const
 
 ExceptionOr<Ref<WebXRReferenceSpace>> WebXRReferenceSpace::getOffsetReferenceSpace(const WebXRRigidTransform& offsetTransform)
 {
+    ALOGV("getOffsetReferenceSpace1");
     auto* document = downcast<Document>(scriptExecutionContext());
     if (!document)
         return Exception { InvalidStateError };
+
+    ALOGV("getOffsetReferenceSpace2");
 
     // https://immersive-web.github.io/webxr/#dom-xrreferencespace-getoffsetreferencespace
     // Set offsetSpace’s origin offset to the result of multiplying base’s origin offset by originOffset in the relevant realm of base.
     auto offset = WebXRRigidTransform::create(originOffset().rawTransform() * offsetTransform.rawTransform());
 
-    return create(*document, m_session.copyRef(), WTFMove(offset), m_type);
+    ALOGV("getOffsetReferenceSpace3");
+
+    auto result =  create(*document, m_session.copyRef(), WTFMove(offset), m_type);
+
+    ALOGV("getOffsetReferenceSpace4");
+
+    return result;
 }
 
 TransformationMatrix WebXRReferenceSpace::floorOriginTransform() const

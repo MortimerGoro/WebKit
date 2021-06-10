@@ -45,14 +45,24 @@ Attachment::Attachment(int fileDescriptor)
 {
 }
 
+Attachment::Attachment(AHardwareBuffer* buffer)
+    : m_type(HardwareBufferType)
+    , m_fileDescriptor(-1)
+    , m_size(0)
+    , m_hardwareBuffer(buffer)
+{
+}
+
 Attachment::Attachment(Attachment&& attachment)
     : m_type(attachment.m_type)
     , m_fileDescriptor(attachment.m_fileDescriptor)
     , m_size(attachment.m_size)
+    , m_hardwareBuffer(attachment.m_hardwareBuffer)
 {
     attachment.m_type = Uninitialized;
     attachment.m_fileDescriptor = -1;
     attachment.m_size = 0;
+    attachment.m_hardwareBuffer = nullptr;
 }
 
 Attachment& Attachment::operator=(Attachment&& attachment)
@@ -63,6 +73,8 @@ Attachment& Attachment::operator=(Attachment&& attachment)
     attachment.m_fileDescriptor = -1;
     m_size = attachment.m_size;
     attachment.m_size = 0;
+    m_hardwareBuffer = attachment.m_hardwareBuffer;
+    attachment.m_hardwareBuffer = nullptr;
 
     return *this;
 }

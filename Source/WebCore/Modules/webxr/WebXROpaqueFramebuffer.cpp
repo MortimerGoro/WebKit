@@ -50,6 +50,10 @@
 #include "WebGLRenderingContextBase.h"
 #include <wtf/Scope.h>
 
+#include <android/log.h>
+#define ALOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, "WPEDebug", __VA_ARGS__)
+
+
 namespace WebCore {
 
 using GL = GraphicsContextGL;
@@ -58,6 +62,8 @@ std::unique_ptr<WebXROpaqueFramebuffer> WebXROpaqueFramebuffer::create(PlatformX
 {
     auto framebuffer = WebGLFramebuffer::createOpaque(context);
     auto opaque = std::unique_ptr<WebXROpaqueFramebuffer>(new WebXROpaqueFramebuffer(handle, WTFMove(framebuffer), context, WTFMove(attributes), width, height));
+    if (!opaque->loadEGLExtensions())
+        return nullptr;
     if (!opaque->setupFramebuffer())
         return nullptr;
     return opaque;
@@ -116,6 +122,43 @@ void WebXROpaqueFramebuffer::startFrame(const PlatformXR::Device::FrameData::Lay
     m_opaqueTexture = data.opaqueTexture;
 #endif
 
+#if USE(EXTERNALXR)
+    m_opaqueTexture = 0;
+
+    auto it = m_bufferCache.find(data.hardwareBuffer.handle);
+    if (it != m_bufferCache.end()) {
+        m_opaqueTexture = it->value.texture;
+    } else {
+        ALOGV("WebXROpaqueFramebuffer cache for handle %d", data.hardwareBuffer.handle);
+
+        auto buffer = data.hardwareBuffer.buffer;
+        ALOGV("hardwareBuffer: %p", buffer);
+        if (!buffer)
+            return;
+
+        AHardwareBuffer_Desc desc { };
+        AHardwareBuffer_describe(buffer, &desc);
+        ALOGV("AHardwareBuffer_describe. w: %d h: %d format: %d usage: %lu", desc.width, desc.height, desc.format, desc.usage);
+        
+        auto clientBuffer = getNativeClientBufferANDROID(buffer);
+        ALOGV("clientBuffer: %p", clientBuffer);
+        if (!clientBuffer)
+            return;
+
+        auto image = createImageKHR(PlatformDisplay::sharedDisplay().eglDisplay(), EGL_NO_CONTEXT, EGL_NATIVE_BUFFER_ANDROID, clientBuffer, nullptr);
+        ALOGV("imageKHR: %p", image);
+        if (!image)
+            return;
+
+        m_opaqueTexture = gl.createTexture();
+        gl.bindTexture(GL::TEXTURE_2D, m_opaqueTexture);
+        imageTargetTexture2DOES(GL::TEXTURE_2D, image);
+        gl.bindTexture(GL::TEXTURE_2D, 0);
+
+        m_bufferCache.add(data.hardwareBuffer.handle, AHardwareBufferCache { buffer, clientBuffer, image, m_opaqueTexture });
+    }
+#endif
+
 #if USE(OPENGL_ES)
     auto& extensions = reinterpret_cast<ExtensionsGLOpenGLES&>(gl.getExtensions());
     if (m_attributes.antialias && extensions.isImagination()) {
@@ -164,6 +207,16 @@ void WebXROpaqueFramebuffer::endFrame()
     }
     
     gl.flush();
+}
+
+bool WebXROpaqueFramebuffer::loadEGLExtensions()
+{
+    getNativeClientBufferANDROID = reinterpret_cast<PFNEGLGETNATIVECLIENTBUFFERANDROIDPROC>(eglGetProcAddress("eglGetNativeClientBufferANDROID"));
+    createImageKHR = reinterpret_cast<PFNEGLCREATEIMAGEKHRPROC>(eglGetProcAddress("eglCreateImageKHR"));
+    destroyImageKHR = reinterpret_cast<PFNEGLDESTROYIMAGEKHRPROC>(eglGetProcAddress("eglDestroyImageKHR"));
+    imageTargetTexture2DOES = reinterpret_cast<PFNGLEGLIMAGETARGETTEXTURE2DOESPROC>(eglGetProcAddress("glEGLImageTargetTexture2DOES"));
+
+    return getNativeClientBufferANDROID && createImageKHR && destroyImageKHR && imageTargetTexture2DOES;
 }
 
 bool WebXROpaqueFramebuffer::setupFramebuffer()

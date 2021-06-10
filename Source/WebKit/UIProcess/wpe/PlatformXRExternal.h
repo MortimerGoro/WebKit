@@ -53,13 +53,14 @@ private:
 
     JNIEnv* m_env { nullptr };
     PlatformXR::VRExternalShmem* m_shmem { nullptr };
-    WorkQueue& m_queue;
+    Ref<WorkQueue> m_queue;
     XRDeviceIdentifier m_identifier;
     HashMap<PlatformXR::LayerHandle, std::unique_ptr<XRHardwareBuffer>> m_layers;
     PlatformXR::VRBrowserState m_browserState;
     PlatformXR::VRSystemState m_systemState;
     uint64_t m_frameId { 0 };
     PlatformXR::LayerHandle m_layerIndex { 0 };
+    std::optional<XRDeviceInfo> m_deviceInfo;
 };
 
 } // namespace WebKit

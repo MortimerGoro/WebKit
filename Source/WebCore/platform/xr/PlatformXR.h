@@ -32,16 +32,23 @@
 #include <wtf/Vector.h>
 #include <wtf/WeakPtr.h>
 
+#include <android/hardware_buffer.h>
+
 #if PLATFORM(COCOA)
 #include "IOSurface.h"
 #include <wtf/MachSendRight.h>
 #endif
 
-#if USE(EXTERNALXR)
-class AHardwareBuffer;
-#endif
-
 namespace PlatformXR {
+
+#if USE(EXTERNALXR)
+class AHardwareBufferWrapper {
+public:
+    int handle { 0 };
+    bool reuse { false };
+    AHardwareBuffer* buffer { nullptr };
+};
+#endif
 
 enum class SessionMode : uint8_t {
     Inline,
@@ -178,7 +185,7 @@ public:
 #if USE(IOSURFACE_FOR_XR_LAYER_DATA)
             std::unique_ptr<WebCore::IOSurface> surface;
 #elif USE(EXTERNALXR)
-            AHardwareBuffer* hardwareBuffer { 0 };
+            AHardwareBufferWrapper hardwareBuffer { 0 };
             PlatformGLObject opaqueTexture { 0 };
 #else
             PlatformGLObject opaqueTexture { 0 };
@@ -447,8 +454,7 @@ void Device::FrameData::LayerData::encode(Encoder& encoder) const
     WTF::MachSendRight surfaceSendRight = surface ? surface->createSendRight() : WTF::MachSendRight();
     encoder << surfaceSendRight;
 #elif USE(EXTERNALXR)
-    // TODO
-    UNUSED_PARAM(encoder);
+    encoder << hardwareBuffer;
 #else
     encoder << opaqueTexture;
 #endif
@@ -464,8 +470,8 @@ std::optional<Device::FrameData::LayerData> Device::FrameData::LayerData::decode
         return std::nullopt;
     layerData.surface = WebCore::IOSurface::createFromSendRight(WTFMove(surfaceSendRight), WebCore::DestinationColorSpace::SRGB());
 #elif USE(EXTERNALXR)
-    // TODO
-    UNUSED_PARAM(decoder);
+    if (!decoder.decode(layerData.hardwareBuffer))
+        return std::nullopt;
 #else
     if (!decoder.decode(layerData.opaqueTexture))
         return std::nullopt;

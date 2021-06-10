@@ -223,6 +223,11 @@ struct Record;
 
 namespace IPC {
 
+template<> struct ArgumentCoder<PlatformXR::AHardwareBufferWrapper> {
+    static void encode(Encoder&, const PlatformXR::AHardwareBufferWrapper&);
+    static WARN_UNUSED_RETURN bool decode(Decoder&, PlatformXR::AHardwareBufferWrapper&);
+};
+
 template<> struct ArgumentCoder<WebCore::AffineTransform> {
     static void encode(Encoder&, const WebCore::AffineTransform&);
     static WARN_UNUSED_RETURN bool decode(Decoder&, WebCore::AffineTransform&);

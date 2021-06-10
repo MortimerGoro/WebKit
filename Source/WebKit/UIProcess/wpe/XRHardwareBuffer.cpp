@@ -22,7 +22,7 @@
 #if ENABLE(WEBXR) && USE(EXTERNALXR)
 #include "XRHardwareBuffer.h"
 #include <android/hardware_buffer.h>
-#include <android/hardware_buffer_jni.h>
+#include <WebCore/PlatformXR.h>
 
 constexpr uint32_t poolSize = 3; 
 
@@ -82,23 +82,30 @@ PlatformXR::Device::FrameData::LayerData XRHardwareBuffer::startFrame()
 {
     ASSERT(!m_frameStarted);
     m_frameStarted = true;
+    m_frameCount++;
 
     auto buffer = m_pool.at(m_poolIndex);
 
     PlatformXR::Device::FrameData::LayerData data;
-    data.hardwareBuffer = buffer;
+    data.hardwareBuffer.handle = m_poolIndex;
+    data.hardwareBuffer.buffer = m_pool.at(m_poolIndex);
+    // Only serialize textures once, it seems Android gets different instances each time.
+    data.hardwareBuffer.reuse = m_frameCount > poolSize;
 
     return data;
 }
 
-void XRHardwareBuffer::endFrame()
+AHardwareBuffer* XRHardwareBuffer::endFrame()
 {
     ASSERT(m_frameStarted);
+    auto result = m_pool.at(m_poolIndex);
     m_poolIndex = (m_poolIndex + 1) % poolSize;
     m_frameStarted = false;
+
+    return result;
 }
 
 
-} // namespace PlatformXR
+} // namespace WebKit
 
 #endif // ENABLE(WEBXR) && USE(EXTERNALXR)

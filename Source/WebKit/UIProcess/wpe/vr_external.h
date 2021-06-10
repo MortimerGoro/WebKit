@@ -4,19 +4,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifndef GFX_VR_EXTERNAL_API_H
-#define GFX_VR_EXTERNAL_API_H
-
-#define GFX_VR_EIGHTCC(c1, c2, c3, c4, c5, c6, c7, c8)                  \
-  ((uint64_t)(c1) << 56 | (uint64_t)(c2) << 48 | (uint64_t)(c3) << 40 | \
-   (uint64_t)(c4) << 32 | (uint64_t)(c5) << 24 | (uint64_t)(c6) << 16 | \
-   (uint64_t)(c7) << 8 | (uint64_t)(c8))
-
-
+#pragma once
 
 #include <pthread.h>
 #include <cstdint>
 #include <type_traits>
+#include <android/hardware_buffer.h>
 
 namespace PlatformXR {
 
@@ -41,7 +34,7 @@ static const int kVRControllerMaxAxis = 16;
 static const int kVRLayerMaxCount = 8;
 static const int kVRHapticsMaxCount = 32;
 
-typedef uint64_t VRLayerTextureHandle;
+typedef AHardwareBuffer* VRLayerTextureHandle;
 
 struct Point3D_POD {
   float x;
@@ -419,5 +412,3 @@ static_assert(std::is_pod<VRExternalShmem>::value,
               "VRExternalShmem must be a POD type.");
 
 }  // namespace PlatformXR
-
-#endif /* GFX_VR_EXTERNAL_API_H */

@@ -232,6 +232,35 @@ static WARN_UNUSED_RETURN bool decodeTypesAndData(Decoder& decoder, Vector<Strin
     return true;
 }
 
+void ArgumentCoder<PlatformXR::AHardwareBufferWrapper>::encode(Encoder& encoder, const PlatformXR::AHardwareBufferWrapper& hardwareBuffer)
+{
+    encoder << hardwareBuffer.handle;
+    encoder << hardwareBuffer.reuse;
+
+    if (!hardwareBuffer.reuse ) {
+        Attachment attachment(hardwareBuffer.buffer);
+        encoder << attachment;
+    }
+}
+
+bool ArgumentCoder<PlatformXR::AHardwareBufferWrapper>::decode(Decoder& decoder, PlatformXR::AHardwareBufferWrapper& hardwareBuffer)
+{
+    if (!decoder.decode(hardwareBuffer.handle))
+        return false;
+
+    if (!decoder.decode(hardwareBuffer.reuse))
+        return false;
+
+    if (!hardwareBuffer.reuse ) {
+        Attachment attachment(hardwareBuffer.buffer);
+        if (!decoder.decode(attachment))
+            return false;
+        hardwareBuffer.buffer = attachment.hardwareBuffer();
+    }
+
+    return true;
+}
+
 void ArgumentCoder<AffineTransform>::encode(Encoder& encoder, const AffineTransform& affineTransform)
 {
     SimpleArgumentCoder<AffineTransform>::encode(encoder, affineTransform);

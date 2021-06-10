@@ -33,6 +33,14 @@
 #include "WebXRLayer.h"
 #include <wtf/Ref.h>
 
+#if USE(EXTERNALXR)
+#include "GLContextEGL.h"
+#include "GraphicsContextGL.h"
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include <android/hardware_buffer.h>
+#endif
+
 namespace WebCore {
 
 class IntSize;
@@ -63,6 +71,7 @@ public:
 private:
     WebXROpaqueFramebuffer(PlatformXR::LayerHandle, Ref<WebGLFramebuffer>&&, WebGLRenderingContextBase&, Attributes&&, uint32_t width, uint32_t height);
 
+    bool loadEGLExtensions();
     bool setupFramebuffer();
 
     PlatformXR::LayerHandle m_handle;
@@ -77,6 +86,19 @@ private:
     PlatformGLObject m_resolvedFBO { 0 };
     GCGLint m_sampleCount { 0 };
     PlatformGLObject m_opaqueTexture { 0 };
+
+    PFNEGLGETNATIVECLIENTBUFFERANDROIDPROC getNativeClientBufferANDROID;
+    PFNEGLCREATEIMAGEKHRPROC createImageKHR;
+    PFNEGLDESTROYIMAGEKHRPROC destroyImageKHR;
+    PFNGLEGLIMAGETARGETTEXTURE2DOESPROC imageTargetTexture2DOES;
+    struct AHardwareBufferCache {
+        AHardwareBuffer* hardwareBuffer { nullptr };
+        EGLClientBuffer clientBuffer { nullptr };
+        EGLImageKHR image { EGL_NO_IMAGE_KHR };
+        PlatformGLObject texture { 0 };
+    };
+
+    HashMap<int, AHardwareBufferCache> m_bufferCache;
 };
 
 } // namespace WebCore

@@ -29,6 +29,7 @@
 
 #if USE(EXTERNALXR) && ENABLE(WEBXR)
 
+#include "WebCoreArgumentCoders.h"
 #include "PlatformXRCoordinator.h"
 #include "PlatformXRSystemMessages.h"
 #include "PlatformXRSystemProxyMessages.h"

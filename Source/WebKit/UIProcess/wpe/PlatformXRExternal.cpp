@@ -85,36 +85,26 @@ static Device::FrameData::Projection toProjection(const VRFieldOfView& fov)
 
 std::unique_ptr<PlatformXRExternal> PlatformXRExternal::create()
 {
-    ALOGV("PlatformXRExternal create");
     JNIEnv* jniEnv = *reinterpret_cast<JNIEnv**>(dlsym(RTLD_DEFAULT, "s_BrowserGlue_env"));
     if (!jniEnv)
         return nullptr;
-    ALOGV("PlatformXRExternal JNI: %p", jniEnv);
 
     PlatformXR::VRExternalShmem* shmem;
     {
         jclass jClass = jniEnv->FindClass("com/wpe/wpe/VRManager");
-        ALOGV("  jClass for com/wpe/wpe/VRManager %p", jClass);
         if (!jClass)
             return nullptr;
         jmethodID jMethodID = jniEnv->GetStaticMethodID(jClass, "getExternalContext", "()J");
-        ALOGV("  jMethodID for getExternalContext %p", jMethodID);
 
         shmem = reinterpret_cast<PlatformXR::VRExternalShmem*>(jniEnv->CallStaticLongMethod(jClass, jMethodID));
 
         jniEnv->DeleteLocalRef(jClass);
     }
 
-    ALOGV("VRExternalShmemt %p", shmem);
-
     if (!shmem)
         return nullptr;
 
     auto queue = WorkQueue::create("PlatformXRExternal queue");
-    queue->dispatch([]{
-        ALOGV("Que dispatch test");    
-    });
-
     std::unique_ptr<PlatformXRExternal> platform(new PlatformXRExternal(jniEnv, shmem, WTFMove(queue)));
     return platform;
 }
@@ -131,9 +121,20 @@ PlatformXRExternal::PlatformXRExternal(JNIEnv* env, PlatformXR::VRExternalShmem*
 
 void PlatformXRExternal::getPrimaryDeviceInfo(DeviceInfoCallback&& callback)
 {
-    ALOGV("makelele getPrimaryDeviceInfo1: %p", m_shmem);
-    m_queue.dispatch([this, callback = WTFMove(callback)]() mutable {
+    ALOGV("makelele getPrimaryDeviceInfo1A: %p", m_shmem);
+    m_queue->dispatch([](){
+        ALOGV("makelele getPrimaryDeviceInfo test");
+    });
+    m_queue->dispatch([this, callback = WTFMove(callback)]() mutable {
         ALOGV("makelele getPrimaryDeviceInfo3");
+        if (auto deviceInfo = m_deviceInfo) {
+            ALOGV("makelele getPrimaryDeviceInfo3b");
+            callback(deviceInfo);
+            ALOGV("makelele getPrimaryDeviceInfo3c");
+            return;
+        }
+        ALOGV("makelele getPrimaryDeviceInfo3d");
+        
         // Wait until the external shmem has valid data.
         pullState([this](){
             return m_systemState.enumerationCompleted;
@@ -144,9 +145,17 @@ void PlatformXRExternal::getPrimaryDeviceInfo(DeviceInfoCallback&& callback)
         info.identifier = m_identifier;
         info.supportsOrientationTracking = true;
         info.supportsStereoRendering = true;
+        info.features = {
+            ReferenceSpaceType::Viewer,
+            ReferenceSpaceType::Local,
+            ReferenceSpaceType::LocalFloor,
+            ReferenceSpaceType::BoundedFloor
+        };
         info.recommendedResolution = {
             2 * m_systemState.displayState.eyeResolution.width, m_systemState.displayState.eyeResolution.height
         };
+
+        m_deviceInfo = info;
 
         ALOGV("makelele getPrimaryDeviceInfo6: %dx%d", info.recommendedResolution.width(), info.recommendedResolution.height());
 
@@ -158,7 +167,7 @@ void PlatformXRExternal::getPrimaryDeviceInfo(DeviceInfoCallback&& callback)
 
 void PlatformXRExternal::startSession(WebPageProxy&, OnSessionEndCallback&&)
 {
-    m_queue.dispatch([this]() {
+    m_queue->dispatch([this]() {
         ALOGV("Start presenting");
         m_browserState.presentationActive = true;
         m_browserState.layerState[0].type = VRLayerType::LayerType_Stereo_Immersive;
@@ -170,16 +179,18 @@ void PlatformXRExternal::startSession(WebPageProxy&, OnSessionEndCallback&&)
 
 void PlatformXRExternal::endSessionIfExists(WebPageProxy&)
 {
-    m_queue.dispatch([this]() {
+    m_queue->dispatch([this]() {
+        ALOGV("endSessionIfExists1");
         m_browserState.presentationActive = false;
         memset(m_browserState.layerState, 0, sizeof(VRLayerState) * PlatformXR::kVRLayerMaxCount);
         pushState(true);
+         ALOGV("endSessionIfExists2");
     });
 }
 
 void PlatformXRExternal::scheduleAnimationFrame(WebPageProxy&, PlatformXR::Device::RequestFrameCallback&& callback)
 {
-    m_queue.dispatch([this, callback = WTFMove(callback)]() mutable {
+    m_queue->dispatch([this, callback = WTFMove(callback)]() mutable {
         ALOGV("Request frame. Wait for frame > %lu", m_frameId);
         pullState([this]() {
             return (m_systemState.sensorState.inputFrameID > m_frameId) || m_systemState.displayState.suppressFrames ||
@@ -304,7 +315,7 @@ void PlatformXRExternal::scheduleAnimationFrame(WebPageProxy&, PlatformXR::Devic
 
 void PlatformXRExternal::submitFrame(WebPageProxy&, Vector<PlatformXR::Device::Layer>&& layers)
 {
-    m_queue.dispatch([this, layers = WTFMove(layers)]() mutable {
+    m_queue->dispatch([this, layers = WTFMove(layers)]() mutable {
         ALOGV("Submit frame: %lu", m_frameId);
         int index = 0;
         for (auto& layer : layers) {
@@ -317,10 +328,13 @@ void PlatformXRExternal::submitFrame(WebPageProxy&, Vector<PlatformXR::Device::L
                 continue;
             }
 
-            it->value->endFrame();
+            auto buffer = it->value->endFrame();
             
             VRLayer_Stereo_Immersive& externalLayer = m_browserState.layerState[index++].layer_stereo_immersive;
             externalLayer.frameId = m_frameId;
+            externalLayer.textureSize.width = it->value->width();
+            externalLayer.textureSize.height = it->value->height();
+            externalLayer.textureHandle = buffer;
 
             for (auto& view: layer.views) {
                 auto& externalRect = view.eye == Eye::Left ? externalLayer.leftEyeRect : externalLayer.rightEyeRect;
@@ -331,6 +345,7 @@ void PlatformXRExternal::submitFrame(WebPageProxy&, Vector<PlatformXR::Device::L
             }
         }
     });
+    pushState(true);
 }
 
 std::optional<LayerHandle> PlatformXRExternal::createLayerProjection(WebPageProxy&, uint32_t width, uint32_t height, bool alpha)
@@ -338,7 +353,8 @@ std::optional<LayerHandle> PlatformXRExternal::createLayerProjection(WebPageProx
     std::optional<LayerHandle> handle;
 
     BinarySemaphore semaphore;
-    m_queue.dispatch([this, width, height, alpha, &handle, &semaphore]() mutable {
+    m_queue->dispatch([this, width, height, alpha, &handle, &semaphore]() mutable {
+        ALOGV("createLayerProjection");
         auto signalOnExit = makeScopeExit([&semaphore]() {
             semaphore.signal();
         });
@@ -358,14 +374,15 @@ std::optional<LayerHandle> PlatformXRExternal::createLayerProjection(WebPageProx
 
 void PlatformXRExternal::deleteLayer(LayerHandle handle)
 {
-    m_queue.dispatch([this, handle]() mutable {
+    m_queue->dispatch([this, handle]() mutable {
+        ALOGV("createLayerProjection");
         m_layers.remove(handle);
     });
 }
 
 void PlatformXRExternal::pushState(bool notifyCond)
 {
-    ASSERT(&RunLoop::current() == &m_queue.runLoop());
+    ASSERT(&RunLoop::current() == &m_queue->runLoop());
     if (!m_shmem)
         return;
 
@@ -379,7 +396,7 @@ void PlatformXRExternal::pushState(bool notifyCond)
 
 void PlatformXRExternal::pullState(const std::function<bool()>& waitCondition)
 {
-    ASSERT(&RunLoop::current() == &m_queue.runLoop());
+    ASSERT(&RunLoop::current() == &m_queue->runLoop());
     if (!m_shmem)
         return;
 

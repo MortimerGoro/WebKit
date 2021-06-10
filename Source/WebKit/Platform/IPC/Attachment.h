@@ -35,6 +35,10 @@
 #include <windows.h>
 #endif
 
+#if USE(UNIX_DOMAIN_SOCKETS)
+class AHardwareBuffer;
+#endif
+
 namespace IPC {
 
 class Decoder;
@@ -49,6 +53,7 @@ public:
 #if USE(UNIX_DOMAIN_SOCKETS)
         SocketType,
         MappedMemoryType,
+        HardwareBufferType,
 #elif OS(DARWIN)
         MachPortType
 #endif
@@ -59,6 +64,7 @@ public:
     Attachment& operator=(Attachment&&);
     Attachment(int fileDescriptor, size_t);
     Attachment(int fileDescriptor);
+    Attachment(AHardwareBuffer*);
     ~Attachment();
 #elif OS(DARWIN)
     Attachment(mach_port_name_t, mach_msg_type_name_t disposition);
@@ -75,6 +81,7 @@ public:
 
     int releaseFileDescriptor() { int temp = m_fileDescriptor; m_fileDescriptor = -1; return temp; }
     int fileDescriptor() const { return m_fileDescriptor; }
+    AHardwareBuffer* hardwareBuffer() const { return m_hardwareBuffer; }
 #elif OS(DARWIN)
     void release();
 
@@ -94,6 +101,7 @@ private:
 #if USE(UNIX_DOMAIN_SOCKETS)
     int m_fileDescriptor { -1 };
     size_t m_size;
+    AHardwareBuffer* m_hardwareBuffer { nullptr };
 #elif OS(DARWIN)
     mach_port_name_t m_port { 0 };
     mach_msg_type_name_t m_disposition { 0 };

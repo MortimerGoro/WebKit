@@ -28,6 +28,7 @@
 
 #if ENABLE(WEBXR) && USE(EXTERNALXR)
 
+#include "WebCoreArgumentCoders.h"
 #include "PlatformXRCoordinator.h"
 #include "PlatformXRSystemProxyMessages.h"
 #include "PlatformXRExternal.h"
@@ -123,11 +124,11 @@ namespace WebKit {
 
 PlatformXRCoordinator* PlatformXRSystem::xrCoordinator()
 {
-    static std::unique_ptr<PlatformXRExternal> instance = nullptr;
-    if (!instance)
-        instance = PlatformXRExternal::create();
+    if (!m_external) {
+        m_external = PlatformXRExternal::create();
+    }
 
-    return instance.get();
+    return m_external.get();
 }
 
 }
