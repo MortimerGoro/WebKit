@@ -385,7 +385,6 @@ void PageClientImpl::enterFullScreen()
     if (fullScreenManagerProxy) {
         fullScreenManagerProxy->willEnterFullScreen();
         m_view.setFullScreen(true);
-        fullScreenManagerProxy->didEnterFullScreen();
     }
 }
 
@@ -398,7 +397,6 @@ void PageClientImpl::exitFullScreen()
     if (fullScreenManagerProxy) {
         fullScreenManagerProxy->willExitFullScreen();
         m_view.setFullScreen(false);
-        fullScreenManagerProxy->didExitFullScreen();
     }
 }
 

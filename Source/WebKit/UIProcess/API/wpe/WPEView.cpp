@@ -257,6 +257,40 @@ View::View(struct wpe_view_backend* backend, const API::PageConfiguration& baseC
     };
     wpe_view_backend_set_input_client(m_backend, &s_inputClient, this);
 
+#if ENABLE(FULLSCREEN_API)
+    static struct wpe_view_backend_fullscreen_client s_fullscreenClient = {
+        // did_enter_fullscreen
+        [](void* data)
+        {
+            auto& view = *reinterpret_cast<View*>(data);
+            view.page().fullScreenManager()->didEnterFullScreen();
+        },
+        // did_exit_fullscreen
+        [](void* data)
+        {
+            auto& view = *reinterpret_cast<View*>(data);
+            view.page().fullScreenManager()->didExitFullScreen();
+        },
+        // request_enter_fullscreen
+        [](void* data)
+        {
+            auto& view = *reinterpret_cast<View*>(data);
+            view.page().fullScreenManager()->requestEnterFullScreen();
+        },
+        // request_exit_fullscreen
+        [](void* data)
+        {
+            auto& view = *reinterpret_cast<View*>(data);
+            view.page().fullScreenManager()->requestExitFullScreen();
+        },
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr
+    };
+    wpe_view_backend_set_fullscreen_client(m_backend, &s_fullscreenClient, this);
+#endif
+
     wpe_view_backend_initialize(m_backend);
 
     m_pageProxy->initializeWebPage();
@@ -374,6 +408,14 @@ void View::close()
 {
     m_pageProxy->close();
 }
+
+#if ENABLE(FULLSCREEN_API)
+void View::setFullScreen(bool fullScreenState)
+{
+    if (wpe_view_backend_platform_set_fullscreen(m_backend, fullScreenState))
+        m_fullScreenModeActive = fullScreenState;
+};
+#endif
 
 #if ENABLE(ACCESSIBILITY)
 WebKitWebViewAccessible* View::accessible() const

@@ -1,3 +1,17 @@
+2021-07-14  Imanol Fernandez  <ifernandez@igalia.com>
+
+        Implement fullscreen in WPEView
+        https://bugs.webkit.org/show_bug.cgi?id=227951
+
+        Reviewed by NOBODY (OOPS!).
+
+        Notify DOM fullscreen enter request to libwpe and handle exit fullscreen from libwpe.
+
+        * UIProcess/API/wpe/WPEView.cpp:
+        (WKWPE::m_backend):
+        (WKWPE::View::setFullScreen):
+        * UIProcess/API/wpe/WPEView.h:
+
 2021-07-23  Wenson Hsieh  <wenson_hsieh@apple.com>
 
         [watchOS] It should be possible to select contact AutoFill text suggestions in email and username fields
